@@ -1,0 +1,330 @@
+@import url('https://fonts.googleapis.com/css2?family=Rye&family=IM+Fell+English:ital@0;1&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: transparent;
+    overflow: hidden;
+    font-family: 'IM Fell English', serif;
+    color: #e8d5b0;
+}
+
+.hidden { display: none !important; }
+
+#crafting-ui {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.crafting-container {
+    width: 900px;
+    max-height: 650px;
+    background: linear-gradient(145deg, #1a1209 0%, #2a1e10 50%, #1a1209 100%);
+    border: 3px solid #8b6914;
+    border-radius: 8px;
+    box-shadow: 0 0 40px rgba(0,0,0,0.8), inset 0 0 80px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Header */
+.crafting-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 25px;
+    background: linear-gradient(180deg, #2a1e10 0%, #1a1209 100%);
+    border-bottom: 2px solid #8b6914;
+}
+
+.crafting-header h1 {
+    font-family: 'Rye', cursive;
+    font-size: 24px;
+    color: #d4a847;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    letter-spacing: 2px;
+}
+
+#close-btn {
+    background: none;
+    border: 1px solid #8b6914;
+    color: #d4a847;
+    font-size: 18px;
+    width: 35px;
+    height: 35px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#close-btn:hover {
+    background: #8b6914;
+    color: #1a1209;
+}
+
+/* Body */
+.crafting-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Sidebar */
+.category-sidebar {
+    width: 160px;
+    padding: 10px;
+    background: rgba(0,0,0,0.3);
+    border-right: 1px solid #5a4520;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+}
+
+.cat-btn {
+    padding: 10px 12px;
+    background: rgba(139, 105, 20, 0.15);
+    border: 1px solid #5a4520;
+    border-radius: 4px;
+    color: #c4a467;
+    font-family: 'IM Fell English', serif;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+}
+
+.cat-btn:hover {
+    background: rgba(139, 105, 20, 0.3);
+    border-color: #8b6914;
+}
+
+.cat-btn.active {
+    background: rgba(139, 105, 20, 0.4);
+    border-color: #d4a847;
+    color: #d4a847;
+}
+
+/* Recipes Grid */
+.recipes-grid {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    align-content: start;
+}
+
+.recipes-grid::-webkit-scrollbar {
+    width: 6px;
+}
+
+.recipes-grid::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.2);
+}
+
+.recipes-grid::-webkit-scrollbar-thumb {
+    background: #5a4520;
+    border-radius: 3px;
+}
+
+/* Recipe Card */
+.recipe-card {
+    background: linear-gradient(135deg, rgba(42, 30, 16, 0.9) 0%, rgba(26, 18, 9, 0.9) 100%);
+    border: 1px solid #5a4520;
+    border-radius: 6px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.recipe-card:hover {
+    border-color: #d4a847;
+    box-shadow: 0 0 15px rgba(212, 168, 71, 0.15);
+    transform: translateY(-1px);
+}
+
+.recipe-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.recipe-card.disabled:hover {
+    border-color: #5a4520;
+    box-shadow: none;
+    transform: none;
+}
+
+.recipe-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.recipe-icon {
+    width: 64px;
+    height: 64px;
+    border: 1px solid #5a4520;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.4);
+    object-fit: contain;
+    padding: 4px;
+}
+
+.recipe-info {
+    flex: 1;
+}
+
+.recipe-name {
+    font-family: 'Rye', cursive;
+    font-size: 14px;
+    color: #d4a847;
+}
+
+.recipe-output {
+    font-size: 11px;
+    color: #a08050;
+    margin-top: 2px;
+}
+
+.recipe-ingredients {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ingredient {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,0,0,0.3);
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    border: 1px solid rgba(90, 69, 32, 0.5);
+}
+
+.ingredient img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.ing-name {
+    flex: 1;
+    font-size: 11px;
+    opacity: 0.85;
+}
+
+.ing-count {
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.ingredient.has {
+    color: #6dbe45;
+    border-color: rgba(109, 190, 69, 0.3);
+}
+
+.ingredient.missing {
+    color: #c44040;
+    border-color: rgba(196, 64, 64, 0.3);
+}
+
+.craft-btn {
+    width: 100%;
+    padding: 8px;
+    background: linear-gradient(180deg, #8b6914 0%, #6a5010 100%);
+    border: 1px solid #d4a847;
+    border-radius: 4px;
+    color: #1a1209;
+    font-family: 'Rye', cursive;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+}
+
+.craft-btn:hover {
+    background: linear-gradient(180deg, #a07a18 0%, #8b6914 100%);
+}
+
+.craft-btn.disabled {
+    background: #3a3020;
+    border-color: #5a4520;
+    color: #666;
+    cursor: not-allowed;
+}
+
+/* Footer / Progress */
+.crafting-footer {
+    padding: 10px 25px;
+    border-top: 1px solid #5a4520;
+    min-height: 20px;
+}
+
+#progress-container {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid #5a4520;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    height: 30px;
+}
+
+#progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #8b6914, #d4a847);
+    transition: width 0.1s linear;
+}
+
+#progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    color: #e8d5b0;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+}
+
+/* Quantity input */
+.qty-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+.qty-input {
+    width: 50px;
+    padding: 4px 8px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid #5a4520;
+    border-radius: 3px;
+    color: #e8d5b0;
+    font-family: 'IM Fell English', serif;
+    font-size: 13px;
+    text-align: center;
+}
+
+.qty-input:focus {
+    outline: none;
+    border-color: #d4a847;
+}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crafting Bench</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="crafting-ui" class="hidden">
+        <div class="crafting-container">
+            <div class="crafting-header">
+                <h1>Crafting Bench</h1>
+                <button id="close-btn" onclick="closeUI()">✕</button>
+            </div>
+            <div class="crafting-body">
+                <div class="category-sidebar">
+                    <button class="cat-btn active" data-cat="all">All</button>
+                    <button class="cat-btn" data-cat="general">General</button>
+                    <button class="cat-btn" data-cat="moonshine">Moonshine</button>
+                    <button class="cat-btn" data-cat="wagon_parts">Wagon Parts</button>
+                    <button class="cat-btn" data-cat="wagon_assembly">Wagons</button>
+                    <button class="cat-btn" data-cat="tanning">Tanning</button>
+                </div>
+                <div class="recipes-grid" id="recipes-grid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            <div class="crafting-footer">
+                <div id="progress-container" class="hidden">
+                    <div id="progress-bar"></div>
+                    <span id="progress-text">Crafting...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
