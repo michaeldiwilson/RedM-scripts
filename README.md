@@ -2,6 +2,8 @@
 
 A collection of roleplay scripts for RedM servers running RSGCore.
 
+> **Note:** These scripts are functional but still a work in progress. Some values (like crafting timers) may still be set to testing defaults, and you'll likely need to tweak configs to suit your server. Check each `config.lua` before going live.
+
 ## Scripts
 
 | Script | Description | SQL Required |
