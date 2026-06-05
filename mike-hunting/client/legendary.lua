@@ -26,12 +26,12 @@ local function addLegendaryBlip(key, def)
     local by = def.coords.y + oy
     local bz = def.coords.z
 
-    -- Create a radius blip (circle on the map)
-    local blip = Citizen.InvokeNative(0x45f13b7e0a15c880, bx, by, bz, 150.0)
+    -- Create an area blip (circle on the map) using _BLIP_ADD_FOR_AREA
+    local areaSize = 200.0
+    local blip = Citizen.InvokeNative(0xEC174ADBCB611ECC, 1664425300, bx + 0.0, by + 0.0, bz + 0.0, areaSize, areaSize, 0.0, 0)
     if blip and blip ~= 0 then
-        SetBlipSprite(blip, joaat('blip_area_search'), true)
         Citizen.InvokeNative(0x9CB1A1623062F402, blip, def.label .. ' Territory')
-        SetBlipAlpha(blip, 128)
+        SetBlipAlpha(blip, 100)
         legendaryBlips[key] = blip
     end
 
