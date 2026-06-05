@@ -7,9 +7,9 @@
 AnimalKillWeapon = {}   -- netId -> weaponHash
 SeenDeadAnimals  = {}   -- netId -> true (prevents re-recording weapon)
 
--- RedM native: GET_CURRENT_PED_WEAPON (not available as a named function)
+-- RedM native: GET_CURRENT_PED_WEAPON (needs ResultAsInteger for proper hash)
 function GetCurrentWeapon(ped)
-    return Citizen.InvokeNative(0x8425C5F057012DAB, ped)
+    return Citizen.InvokeNative(0x8425C5F057012DAB, ped, Citizen.ResultAsInteger())
 end
 
 function DetermineQuality(typeKey, weaponHash)

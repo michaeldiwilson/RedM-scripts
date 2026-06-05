@@ -79,13 +79,19 @@ local function spawnLegendary(key, def, coords, heading)
     local hash = GetHashKey(def.model)
     if not loadModel(hash) then return end
 
-    local animal = CreatePed(hash, coords.x, coords.y, coords.z, heading, true, false, false, false)
+    -- Get proper ground Z so the animal doesn't spawn underground
+    local spawnZ = coords.z
+    local found, groundZ = GetGroundZFor_3dCoord(coords.x, coords.y, coords.z + 50.0, false)
+    if found then spawnZ = groundZ end
+
+    local animal = CreatePed(hash, coords.x, coords.y, spawnZ, heading, true, false, false, false)
     if not animal or animal == 0 then return end
 
     SetModelAsNoLongerNeeded(hash)
+    PlaceObjectOnGroundProperly(animal)
     SetEntityMaxHealth(animal, 800)
     SetEntityHealth(animal, 800)
-    TaskWanderInArea(animal, coords.x, coords.y, coords.z, def.wanderRadius, 0, 0)
+    TaskWanderInArea(animal, coords.x, coords.y, spawnZ, def.wanderRadius, 0, 0)
 
     spawnedLegendaries[key] = { entity = animal }
     LegendaryEntityLookup[animal] = key
