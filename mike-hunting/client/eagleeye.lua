@@ -35,7 +35,7 @@ local function activateEagleEye()
             Wait(0)
             local ped = PlayerPedId()
             local pCoords = GetEntityCoords(ped)
-            local currentWeapon = GetSelectedPedWeapon(ped)
+            local currentWeapon = GetCurrentWeapon(ped)
 
             for _, animal in pairs(GetGamePool('CPed') or {}) do
                 if DoesEntityExist(animal) and not IsPedAPlayer(animal) and not IsPedDeadOrDying(animal, true) then

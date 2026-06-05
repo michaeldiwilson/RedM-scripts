@@ -21,7 +21,7 @@ CreateThread(function()
         Wait(500)
         local ped = PlayerPedId()
         local p = GetEntityCoords(ped)
-        local currentWeapon = GetSelectedPedWeapon(ped)
+        local currentWeapon = GetCurrentWeapon(ped)
         local best, bestDist, bestType = nil, Config.SkinRadius, nil
 
         for _, animal in pairs(GetGamePool('CPed') or {}) do

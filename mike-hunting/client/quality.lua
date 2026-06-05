@@ -7,6 +7,11 @@
 AnimalKillWeapon = {}   -- netId -> weaponHash
 SeenDeadAnimals  = {}   -- netId -> true (prevents re-recording weapon)
 
+-- RedM native: GET_CURRENT_PED_WEAPON (not available as a named function)
+function GetCurrentWeapon(ped)
+    return Citizen.InvokeNative(0x8425C5F057012DAB, ped)
+end
+
 function DetermineQuality(typeKey, weaponHash)
     local sizeClass = Config.AnimalSizeClass[typeKey]
     if not sizeClass then return 2 end
