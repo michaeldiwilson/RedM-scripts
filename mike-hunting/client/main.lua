@@ -28,15 +28,27 @@ CreateThread(function()
             if DoesEntityExist(animal) and IsPedDeadOrDying(animal, true) and not IsPedAPlayer(animal) then
                 local model = GetEntityModel(animal)
                 local typeKey = AnimalHashLookup[model]
-                if typeKey and NetworkGetEntityIsNetworked(animal) then
-                    local netId = NetworkGetNetworkIdFromEntity(animal)
-                    if not skinnedAnimals[netId] then
-                        -- Snapshot weapon on first time seeing this animal dead
-                        if not SeenDeadAnimals[netId] then
-                            SeenDeadAnimals[netId] = true
-                            AnimalKillWeapon[netId] = currentWeapon
-                        end
+                if typeKey then
+                    local isLegendary = LegendaryEntityLookup[animal] ~= nil
+                    local isNetworked = NetworkGetEntityIsNetworked(animal)
 
+                    -- For networked animals: track via netId
+                    -- For legendaries (non-networked): always eligible
+                    local eligible = false
+                    if isLegendary then
+                        eligible = true
+                    elseif isNetworked then
+                        local netId = NetworkGetNetworkIdFromEntity(animal)
+                        if not skinnedAnimals[netId] then
+                            eligible = true
+                            if not SeenDeadAnimals[netId] then
+                                SeenDeadAnimals[netId] = true
+                                AnimalKillWeapon[netId] = currentWeapon
+                            end
+                        end
+                    end
+
+                    if eligible then
                         local d = #(GetEntityCoords(animal) - p)
                         if d <= bestDist then
                             best = animal
@@ -49,10 +61,11 @@ CreateThread(function()
         end
 
         if best then
+            local netId = NetworkGetEntityIsNetworked(best) and NetworkGetNetworkIdFromEntity(best) or 0
             nearestDeadAnimal = {
                 entity  = best,
                 typeKey = bestType,
-                netId   = NetworkGetNetworkIdFromEntity(best),
+                netId   = netId,
             }
         else
             nearestDeadAnimal = nil
