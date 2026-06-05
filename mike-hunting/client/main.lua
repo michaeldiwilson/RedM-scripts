@@ -114,7 +114,54 @@ end)
 local butcherZones = {}
 
 local function openButcherMenu()
-    TriggerServerEvent('mike-hunting:server:getButcherStock')
+    lib.registerContext({
+        id = 'mike_butcher_main',
+        title = 'Butcher',
+        options = {
+            {
+                title       = 'Sell Goods',
+                description = 'Sell meat, pelts, carcasses and parts',
+                icon        = 'fa-solid fa-coins',
+                onSelect    = function()
+                    TriggerServerEvent('mike-hunting:server:getButcherStock')
+                end,
+            },
+            {
+                title       = 'Legendary Rumors',
+                description = 'Buy information about legendary animals in the area',
+                icon        = 'fa-solid fa-map',
+                onSelect    = function() openLegendaryRumors() end,
+            },
+        },
+    })
+    lib.showContext('mike_butcher_main')
+end
+
+function openLegendaryRumors()
+    local opts = {}
+    for key, def in pairs(Config.LegendaryAnimals) do
+        local price = def.rumorPrice or 25
+        if discoveredLegendaries and discoveredLegendaries[key] then
+            opts[#opts + 1] = {
+                title       = def.label,
+                description = 'Already discovered',
+                icon        = 'fa-solid fa-check',
+                disabled    = true,
+            }
+        else
+            opts[#opts + 1] = {
+                title       = def.label .. ' — $' .. price,
+                description = 'Buy a rumor about this legendary animal',
+                icon        = 'fa-solid fa-scroll',
+                onSelect    = function()
+                    lib.callback.await('mike-hunting:server:buyRumor', false, key)
+                end,
+            }
+        end
+    end
+
+    lib.registerContext({ id = 'mike_butcher_rumors', title = 'Legendary Rumors', menu = 'mike_butcher_main', options = opts })
+    lib.showContext('mike_butcher_rumors')
 end
 
 RegisterNetEvent('mike-hunting:client:showButcher', function(sellableItems)
@@ -138,7 +185,7 @@ RegisterNetEvent('mike-hunting:client:showButcher', function(sellableItems)
         }
     end
 
-    lib.registerContext({ id = 'mike_butcher', title = 'Butcher', options = opts })
+    lib.registerContext({ id = 'mike_butcher', title = 'Sell Goods', menu = 'mike_butcher_main', options = opts })
     lib.showContext('mike_butcher')
 end)
 

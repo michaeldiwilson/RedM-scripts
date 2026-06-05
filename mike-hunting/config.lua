@@ -285,6 +285,7 @@ Config.LegendaryAnimals = {
         pelt         = 'legendary_bear_pelt',
         extras       = { { item = 'legendary_bear_claw', qty = 1 } },
         meat         = { item = 'bear_meat', min = 5, max = 8 },
+        rumorPrice   = 30,
     },
     legendary_cougar = {
         label        = 'Legendary Cougar',
@@ -297,6 +298,7 @@ Config.LegendaryAnimals = {
         pelt         = 'legendary_cougar_pelt',
         extras       = {},
         meat         = { item = 'game_meat', min = 3, max = 5 },
+        rumorPrice   = 35,
     },
     legendary_elk = {
         label        = 'Legendary Elk',
@@ -309,6 +311,7 @@ Config.LegendaryAnimals = {
         pelt         = 'legendary_elk_pelt',
         extras       = { { item = 'legendary_antlers', qty = 1 } },
         meat         = { item = 'venison', min = 5, max = 8 },
+        rumorPrice   = 30,
     },
     legendary_wolf = {
         label        = 'Legendary Wolf',
@@ -321,6 +324,7 @@ Config.LegendaryAnimals = {
         pelt         = 'legendary_wolf_pelt',
         extras       = {},
         meat         = { item = 'game_meat', min = 3, max = 5 },
+        rumorPrice   = 25,
     },
     legendary_bison = {
         label        = 'Legendary Bison',
@@ -333,6 +337,7 @@ Config.LegendaryAnimals = {
         pelt         = 'legendary_bison_pelt',
         extras       = { { item = 'legendary_bison_horn', qty = 1 } },
         meat         = { item = 'bison_meat', min = 6, max = 10 },
+        rumorPrice   = 40,
     },
 }
 Config.LegendarySpawnRadius  = 200.0

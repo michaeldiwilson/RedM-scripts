@@ -101,3 +101,24 @@ RegisterNetEvent('mike-hunting:server:legendaryDespawned', function(legendaryKey
     state.alive = false
     state.spawnedBy = nil
 end)
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Butcher: buy legendary rumors
+-- ──────────────────────────────────────────────────────────────────────────
+lib.callback.register('mike-hunting:server:buyRumor', function(source, legendaryKey)
+    local src = source
+    local P = RSGCore.Functions.GetPlayer(src); if not P then return false end
+    local def = Config.LegendaryAnimals[legendaryKey]
+    if not def then return false end
+
+    local price = def.rumorPrice or 25
+    local cash = P.Functions.GetMoney('cash')
+    if cash < price then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = ('Not enough cash. Need $%d'):format(price) })
+        return false
+    end
+
+    P.Functions.RemoveMoney('cash', price)
+    TriggerClientEvent('mike-hunting:client:revealLegendary', src, legendaryKey)
+    return true
+end)
