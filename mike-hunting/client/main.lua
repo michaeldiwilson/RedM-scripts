@@ -28,7 +28,7 @@ CreateThread(function()
             if DoesEntityExist(animal) and IsPedDeadOrDying(animal, true) and not IsPedAPlayer(animal) then
                 local model = GetEntityModel(animal)
                 local typeKey = AnimalHashLookup[model]
-                if typeKey then
+                if typeKey and NetworkGetEntityIsNetworked(animal) then
                     local netId = NetworkGetNetworkIdFromEntity(animal)
                     if not skinnedAnimals[netId] then
                         -- Snapshot weapon on first time seeing this animal dead

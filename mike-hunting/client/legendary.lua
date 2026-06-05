@@ -84,11 +84,11 @@ local function spawnLegendary(key, def, coords, heading)
     local found, groundZ = GetGroundZFor_3dCoord(coords.x, coords.y, coords.z + 50.0, false)
     if found then spawnZ = groundZ end
 
-    local animal = CreatePed(hash, coords.x, coords.y, spawnZ, heading, true, false, false, false)
+    local animal = CreatePed(hash, coords.x, coords.y, spawnZ, heading, false, false, false, false)
     if not animal or animal == 0 then return end
 
     SetModelAsNoLongerNeeded(hash)
-    PlaceObjectOnGroundProperly(animal)
+    Citizen.InvokeNative(0x283978A15512B2FE, animal, true) -- SetRandomOutfitVariation
     SetEntityMaxHealth(animal, 800)
     SetEntityHealth(animal, 800)
     TaskWanderInArea(animal, coords.x, coords.y, spawnZ, def.wanderRadius, 0, 0)
