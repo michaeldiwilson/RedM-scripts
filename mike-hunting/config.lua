@@ -326,11 +326,11 @@ Config.LegendaryAnimals = {
         meat         = { item = 'game_meat', min = 3, max = 5 },
         rumorPrice   = 25,
     },
-    legendary_bison_heartlands = {
-        label        = 'Legendary Heartlands Bison',
+    legendary_bison = {
+        label        = 'Legendary Bison',
         model        = 'a_c_buffalo_01',
         typeKey      = 'bison',
-        coords       = vector3(1310.0, 400.0, 92.0),    -- Heartlands
+        coords       = vector3(1310.0, 400.0, 92.0),    -- picked randomly at runtime
         heading      = 45.0,
         wanderRadius = 50.0,
         cooldown     = 60 * 60,
@@ -338,19 +338,11 @@ Config.LegendaryAnimals = {
         extras       = { { item = 'legendary_bison_horn', qty = 1 } },
         meat         = { item = 'bison_meat', min = 6, max = 10 },
         rumorPrice   = 40,
-    },
-    legendary_bison_plains = {
-        label        = 'Legendary Plains Bison',
-        model        = 'a_c_buffalo_tatanka_01',
-        typeKey      = 'bison',
-        coords       = vector3(-1870.0, -1650.0, 112.0), -- Great Plains near Blackwater
-        heading      = 90.0,
-        wanderRadius = 50.0,
-        cooldown     = 60 * 60,
-        pelt         = 'legendary_bison_pelt',
-        extras       = { { item = 'legendary_bison_horn', qty = 1 } },
-        meat         = { item = 'bison_meat', min = 6, max = 10 },
-        rumorPrice   = 40,
+        -- Multiple possible locations — server picks one at random
+        locations    = {
+            { coords = vector3(1310.0, 400.0, 92.0),     heading = 45.0 },  -- Heartlands
+            { coords = vector3(-1870.0, -1650.0, 112.0), heading = 90.0 },  -- Great Plains near Blackwater
+        },
     },
 }
 Config.LegendarySpawnRadius  = 200.0

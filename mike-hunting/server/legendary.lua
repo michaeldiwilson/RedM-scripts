@@ -3,22 +3,34 @@ local RSGCore = exports['rsg-core']:GetCoreObject()
 -- ──────────────────────────────────────────────────────────────────────────
 -- Legendary animal state (server memory, resets on restart)
 -- ──────────────────────────────────────────────────────────────────────────
-local legendaryState = {}  -- key -> { alive, lastKilled, spawnedBy }
+local legendaryState = {}  -- key -> { alive, lastKilled, spawnedBy, activeCoords, activeHeading }
 
--- Initialize state for each legendary
+-- Pick a random location for a legendary (supports multi-location configs)
+local function pickLocation(def)
+    if def.locations and #def.locations > 0 then
+        local loc = def.locations[math.random(#def.locations)]
+        return loc.coords, loc.heading
+    end
+    return def.coords, def.heading
+end
+
+-- Initialize state for each legendary (pick initial location)
 CreateThread(function()
-    for key, _ in pairs(Config.LegendaryAnimals) do
+    for key, def in pairs(Config.LegendaryAnimals) do
+        local coords, heading = pickLocation(def)
         legendaryState[key] = {
-            alive      = false,
-            lastKilled = 0,
-            spawnedBy  = nil,
+            alive         = false,
+            lastKilled    = 0,
+            spawnedBy     = nil,
+            activeCoords  = coords,
+            activeHeading = heading,
         }
     end
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
 -- Callback: check which legendaries are available to spawn
--- Called by client every 10s when in proximity
+-- Returns available keys + their active coords so client can check proximity
 -- ──────────────────────────────────────────────────────────────────────────
 lib.callback.register('mike-hunting:server:checkLegendaries', function(source)
     local available = {}
@@ -26,7 +38,10 @@ lib.callback.register('mike-hunting:server:checkLegendaries', function(source)
     for key, state in pairs(legendaryState) do
         local def = Config.LegendaryAnimals[key]
         if not state.alive and (now - state.lastKilled >= def.cooldown) then
-            available[key] = true
+            available[key] = {
+                coords  = state.activeCoords,
+                heading = state.activeHeading,
+            }
         end
     end
     return available
@@ -61,10 +76,13 @@ RegisterNetEvent('mike-hunting:server:legendaryKilled', function(legendaryKey)
     local def = Config.LegendaryAnimals[legendaryKey]
     if not def then return end
 
-    -- Mark as killed
+    -- Mark as killed + pick a new random location for next spawn
     state.alive = false
     state.lastKilled = os.time()
     state.spawnedBy = nil
+    local newCoords, newHeading = pickLocation(def)
+    state.activeCoords = newCoords
+    state.activeHeading = newHeading
 
     -- Give legendary pelt
     P.Functions.AddItem(def.pelt, 1)
@@ -97,19 +115,20 @@ end)
 RegisterNetEvent('mike-hunting:server:legendaryDespawned', function(legendaryKey)
     local state = legendaryState[legendaryKey]
     if not state then return end
-    -- Mark as not alive but don't set lastKilled (can respawn immediately)
     state.alive = false
     state.spawnedBy = nil
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Butcher: buy legendary rumors
+-- Butcher: buy legendary rumors — tells client the active location
 -- ──────────────────────────────────────────────────────────────────────────
 lib.callback.register('mike-hunting:server:buyRumor', function(source, legendaryKey)
     local src = source
     local P = RSGCore.Functions.GetPlayer(src); if not P then return false end
     local def = Config.LegendaryAnimals[legendaryKey]
     if not def then return false end
+    local state = legendaryState[legendaryKey]
+    if not state then return false end
 
     local price = def.rumorPrice or 25
     local cash = P.Functions.GetMoney('cash')
@@ -119,6 +138,7 @@ lib.callback.register('mike-hunting:server:buyRumor', function(source, legendary
     end
 
     P.Functions.RemoveMoney('cash', price)
-    TriggerClientEvent('mike-hunting:client:revealLegendary', src, legendaryKey)
+    -- Send the active coords to the client so the blip is in the right place
+    TriggerClientEvent('mike-hunting:client:revealLegendary', src, legendaryKey, state.activeCoords)
     return true
 end)

@@ -1,10 +1,11 @@
 -- ──────────────────────────────────────────────────────────────────────────
 -- Legendary Animals: buy a rumor at the butcher to reveal territory on map
+-- Server picks a random location for multi-location legendaries
 -- ──────────────────────────────────────────────────────────────────────────
-local spawnedLegendaries = {}  -- legendaryKey -> { entity }
-local notifiedLegendaries = {} -- legendaryKey -> true (prevent spam notifications)
-local legendaryBlips = {}      -- legendaryKey -> blip handle
-local discoveredLegendaries = {} -- legendaryKey -> true (player has bought the rumor)
+local spawnedLegendaries = {}    -- legendaryKey -> { entity }
+local notifiedLegendaries = {}   -- legendaryKey -> true
+local legendaryBlips = {}        -- legendaryKey -> blip handle
+local discoveredLegendaries = {} -- legendaryKey -> { coords = vec3 } (from server)
 
 local function loadModel(hash)
     RequestModel(hash)
@@ -14,23 +15,23 @@ local function loadModel(hash)
 end
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Radius blip: rough circle on the map (offset slightly so it's not exact)
+-- Area blip: rough circle on the map (offset slightly so it's not exact)
 -- ──────────────────────────────────────────────────────────────────────────
-local function addLegendaryBlip(key, def)
+local function addLegendaryBlip(key, label, coords)
     if legendaryBlips[key] then return end
 
     -- Offset the blip slightly so the circle isn't centered exactly on the spawn
     local ox = math.random(-50, 50) + 0.0
     local oy = math.random(-50, 50) + 0.0
-    local bx = def.coords.x + ox
-    local by = def.coords.y + oy
-    local bz = def.coords.z
+    local bx = coords.x + ox
+    local by = coords.y + oy
+    local bz = coords.z
 
     -- Create an area blip (circle on the map) using _BLIP_ADD_FOR_AREA
     local areaSize = 200.0
     local blip = Citizen.InvokeNative(0xEC174ADBCB611ECC, 1664425300, bx + 0.0, by + 0.0, bz + 0.0, areaSize, areaSize, 0.0, 0)
     if blip and blip ~= 0 then
-        Citizen.InvokeNative(0x9CB1A1623062F402, blip, def.label .. ' Territory')
+        Citizen.InvokeNative(0x9CB1A1623062F402, blip, label .. ' Territory')
         legendaryBlips[key] = blip
     end
 
@@ -38,7 +39,7 @@ local function addLegendaryBlip(key, def)
     local iconBlip = Citizen.InvokeNative(0x554D9D53F696D002, 1664425300, bx + 0.0, by + 0.0, bz + 0.0)
     if iconBlip and iconBlip ~= 0 then
         SetBlipSprite(iconBlip, joaat('blip_hunt_animal_clue'), true)
-        Citizen.InvokeNative(0x9CB1A1623062F402, iconBlip, def.label)
+        Citizen.InvokeNative(0x9CB1A1623062F402, iconBlip, label)
         legendaryBlips[key .. '_icon'] = iconBlip
     end
 end
@@ -54,14 +55,14 @@ local function removeLegendaryBlip(key)
 end
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Rumor map: player uses the item, reveals the territory
+-- Rumor: server tells client the active coords for this legendary
 -- ──────────────────────────────────────────────────────────────────────────
-RegisterNetEvent('mike-hunting:client:revealLegendary', function(legendaryKey)
+RegisterNetEvent('mike-hunting:client:revealLegendary', function(legendaryKey, activeCoords)
     local def = Config.LegendaryAnimals[legendaryKey]
     if not def then return end
 
-    discoveredLegendaries[legendaryKey] = true
-    addLegendaryBlip(legendaryKey, def)
+    discoveredLegendaries[legendaryKey] = { coords = activeCoords }
+    addLegendaryBlip(legendaryKey, def.label, activeCoords)
 
     lib.notify({
         type = 'success',
@@ -72,19 +73,19 @@ RegisterNetEvent('mike-hunting:client:revealLegendary', function(legendaryKey)
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Spawn / despawn
+-- Spawn / despawn — uses coords from server (not config)
 -- ──────────────────────────────────────────────────────────────────────────
-local function spawnLegendary(key, def)
+local function spawnLegendary(key, def, coords, heading)
     local hash = GetHashKey(def.model)
     if not loadModel(hash) then return end
 
-    local animal = CreatePed(hash, def.coords.x, def.coords.y, def.coords.z, def.heading, true, false, false, false)
+    local animal = CreatePed(hash, coords.x, coords.y, coords.z, heading, true, false, false, false)
     if not animal or animal == 0 then return end
 
     SetModelAsNoLongerNeeded(hash)
     SetEntityMaxHealth(animal, 800)
     SetEntityHealth(animal, 800)
-    TaskWanderInArea(animal, def.coords.x, def.coords.y, def.coords.z, def.wanderRadius, 0, 0)
+    TaskWanderInArea(animal, coords.x, coords.y, coords.z, def.wanderRadius, 0, 0)
 
     spawnedLegendaries[key] = { entity = animal }
     LegendaryEntityLookup[animal] = key
@@ -119,7 +120,7 @@ local function despawnLegendary(key, notifyServer)
 end
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Proximity check: only for legendaries the player has discovered
+-- Proximity check: uses active coords from server
 -- ──────────────────────────────────────────────────────────────────────────
 CreateThread(function()
     Wait(5000)
@@ -132,10 +133,15 @@ CreateThread(function()
         if not available then goto continue end
 
         for key, def in pairs(Config.LegendaryAnimals) do
-            -- Only spawn legendaries the player has discovered via rumor
             if not discoveredLegendaries[key] then goto nextLeg end
 
-            local dist = #(pCoords - def.coords)
+            -- Use server-provided coords for proximity
+            local info = available[key]
+            if not info then goto nextLeg end
+
+            local activeCoords = info.coords
+            local activeHeading = info.heading
+            local dist = #(pCoords - activeCoords)
             local isSpawned = spawnedLegendaries[key] ~= nil
 
             if isSpawned then
@@ -143,12 +149,12 @@ CreateThread(function()
                     despawnLegendary(key, true)
                 end
             else
-                if available[key] and dist <= Config.LegendarySpawnRadius then
+                if dist <= Config.LegendarySpawnRadius then
                     local claimed = lib.callback.await('mike-hunting:server:claimLegendarySpawn', false, key)
                     if claimed then
-                        spawnLegendary(key, def)
+                        spawnLegendary(key, def, activeCoords, activeHeading)
                     end
-                elseif available[key] and dist <= Config.LegendaryNotifyRadius and not notifiedLegendaries[key] then
+                elseif dist <= Config.LegendaryNotifyRadius and not notifiedLegendaries[key] then
                     notifiedLegendaries[key] = true
                     lib.notify({
                         type = 'inform',
@@ -176,7 +182,6 @@ CreateThread(function()
                 if IsPedDeadOrDying(data.entity, true) then
                     spawnedLegendaries[key] = nil
                     notifiedLegendaries[key] = nil
-                    -- Remove the map blip after the kill
                     removeLegendaryBlip(key)
                     discoveredLegendaries[key] = nil
                 end
