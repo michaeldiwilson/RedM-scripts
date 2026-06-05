@@ -31,7 +31,6 @@ local function addLegendaryBlip(key, def)
     local blip = Citizen.InvokeNative(0xEC174ADBCB611ECC, 1664425300, bx + 0.0, by + 0.0, bz + 0.0, areaSize, areaSize, 0.0, 0)
     if blip and blip ~= 0 then
         Citizen.InvokeNative(0x9CB1A1623062F402, blip, def.label .. ' Territory')
-        SetBlipAlpha(blip, 100)
         legendaryBlips[key] = blip
     end
 
