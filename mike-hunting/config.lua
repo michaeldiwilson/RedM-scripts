@@ -193,6 +193,189 @@ Config.Butchers = {
 }
 Config.ButcherRadius = 4.0
 
+-- ──────────────────────────────────────────────────────────────────────────
+-- Pelt Quality System
+-- ──────────────────────────────────────────────────────────────────────────
+
+-- Animal size classes — determines which weapon category is "correct"
+Config.AnimalSizeClass = {
+    rabbit    = 'small',
+    coyote    = 'small',
+    goat      = 'small',
+    sheep     = 'medium',
+    deer      = 'medium',
+    buck      = 'medium',
+    pronghorn = 'medium',
+    boar      = 'medium',
+    wolf      = 'medium',
+    cougar    = 'medium',
+    elk       = 'large',
+    bear      = 'large',
+    bison     = 'large',
+}
+
+-- Weapon hash → hunting class
+Config.WeaponClass = {
+    -- Varmint: correct for small animals
+    [joaat('WEAPON_RIFLE_VARMINT')]             = 'varmint',
+    -- Bow: correct for small + medium
+    [joaat('WEAPON_BOW')]                       = 'bow',
+    [joaat('WEAPON_BOW_IMPROVED')]              = 'bow',
+    -- Rifles/Repeaters: correct for medium
+    [joaat('WEAPON_RIFLE_BOLTACTION')]          = 'rifle',
+    [joaat('WEAPON_RIFLE_SPRINGFIELD')]         = 'rifle',
+    [joaat('WEAPON_REPEATER_CARBINE')]          = 'rifle',
+    [joaat('WEAPON_REPEATER_EVANS')]            = 'rifle',
+    [joaat('WEAPON_REPEATER_HENRY')]            = 'rifle',
+    [joaat('WEAPON_REPEATER_WINCHESTER')]       = 'rifle',
+    -- High-power / Sniper: correct for large
+    [joaat('WEAPON_SNIPERRIFLE_CARCANO')]       = 'highpower',
+    [joaat('WEAPON_SNIPERRIFLE_ROLLINGBLOCK')]  = 'highpower',
+    [joaat('WEAPON_RIFLE_ELEPHANT')]            = 'highpower',
+    -- Shotguns: always ruins pelts
+    [joaat('WEAPON_SHOTGUN_DOUBLEBARREL')]      = 'shotgun',
+    [joaat('WEAPON_SHOTGUN_PUMP')]              = 'shotgun',
+    [joaat('WEAPON_SHOTGUN_REPEATING')]         = 'shotgun',
+    [joaat('WEAPON_SHOTGUN_SAWEDOFF')]          = 'shotgun',
+    [joaat('WEAPON_SHOTGUN_SEMIAUTO')]          = 'shotgun',
+    -- Pistols/Revolvers: always ruins pelts
+    [joaat('WEAPON_PISTOL_M1899')]              = 'pistol',
+    [joaat('WEAPON_PISTOL_MAUSER')]             = 'pistol',
+    [joaat('WEAPON_PISTOL_SEMIAUTO')]           = 'pistol',
+    [joaat('WEAPON_PISTOL_VOLCANIC')]           = 'pistol',
+    [joaat('WEAPON_REVOLVER_CATTLEMAN')]        = 'pistol',
+    [joaat('WEAPON_REVOLVER_DOUBLEACTION')]     = 'pistol',
+    [joaat('WEAPON_REVOLVER_LEMAT')]            = 'pistol',
+    [joaat('WEAPON_REVOLVER_NAVY')]             = 'pistol',
+    [joaat('WEAPON_REVOLVER_SCHOFIELD')]        = 'pistol',
+}
+
+-- Which weapon classes are appropriate for each size class
+Config.CorrectWeapons = {
+    small  = { varmint = true, bow = true },
+    medium = { rifle = true, bow = true },
+    large  = { highpower = true, rifle = true },
+}
+
+-- Quality multipliers (1 = poor, 2 = good, 3 = perfect)
+Config.QualityMultiplier = {
+    [1] = { priceMulti = 0.4,  meatMulti = 0.5,  prefix = 'poor_',    label = 'Poor'    },
+    [2] = { priceMulti = 1.0,  meatMulti = 1.0,  prefix = '',         label = 'Good'    },
+    [3] = { priceMulti = 1.5,  meatMulti = 1.25, prefix = 'perfect_', label = 'Perfect' },
+}
+
+-- Generate quality-variant PeltLeather entries (poor = half, perfect = base+1)
+for basePelt, baseLeather in pairs(Config.PeltLeather) do
+    Config.PeltLeather['poor_' .. basePelt]    = math.max(1, math.floor(baseLeather / 2))
+    Config.PeltLeather['perfect_' .. basePelt] = baseLeather + 1
+end
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Legendary Animals
+-- ──────────────────────────────────────────────────────────────────────────
+Config.LegendaryAnimals = {
+    legendary_bear = {
+        label        = 'Legendary Grizzly',
+        model        = 'a_c_bear_01',
+        typeKey      = 'bear',
+        coords       = vector3(-1607.0, 725.0, 112.0),
+        heading      = 180.0,
+        wanderRadius = 30.0,
+        cooldown     = 45 * 60,
+        pelt         = 'legendary_bear_pelt',
+        extras       = { { item = 'legendary_bear_claw', qty = 1 } },
+        meat         = { item = 'bear_meat', min = 5, max = 8 },
+    },
+    legendary_cougar = {
+        label        = 'Legendary Cougar',
+        model        = 'a_c_cougar_01',
+        typeKey      = 'cougar',
+        coords       = vector3(-2100.0, -550.0, 135.0),
+        heading      = 90.0,
+        wanderRadius = 25.0,
+        cooldown     = 50 * 60,
+        pelt         = 'legendary_cougar_pelt',
+        extras       = {},
+        meat         = { item = 'game_meat', min = 3, max = 5 },
+    },
+    legendary_elk = {
+        label        = 'Legendary Elk',
+        model        = 'a_c_elk_01',
+        typeKey      = 'elk',
+        coords       = vector3(-800.0, 1200.0, 105.0),
+        heading      = 0.0,
+        wanderRadius = 40.0,
+        cooldown     = 50 * 60,
+        pelt         = 'legendary_elk_pelt',
+        extras       = { { item = 'legendary_antlers', qty = 1 } },
+        meat         = { item = 'venison', min = 5, max = 8 },
+    },
+    legendary_wolf = {
+        label        = 'Legendary Wolf',
+        model        = 'a_c_wolf',
+        typeKey      = 'wolf',
+        coords       = vector3(-1200.0, 950.0, 95.0),
+        heading      = 270.0,
+        wanderRadius = 35.0,
+        cooldown     = 45 * 60,
+        pelt         = 'legendary_wolf_pelt',
+        extras       = {},
+        meat         = { item = 'game_meat', min = 3, max = 5 },
+    },
+    legendary_bison = {
+        label        = 'Legendary Bison',
+        model        = 'a_c_buffalo_01',
+        typeKey      = 'bison',
+        coords       = vector3(-400.0, 1500.0, 98.0),
+        heading      = 45.0,
+        wanderRadius = 50.0,
+        cooldown     = 60 * 60,
+        pelt         = 'legendary_bison_pelt',
+        extras       = { { item = 'legendary_bison_horn', qty = 1 } },
+        meat         = { item = 'bison_meat', min = 6, max = 10 },
+    },
+}
+Config.LegendarySpawnRadius  = 200.0
+Config.LegendaryNotifyRadius = 300.0
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Animal Bait
+-- ──────────────────────────────────────────────────────────────────────────
+Config.Bait = {
+    herbivore_bait = {
+        label      = 'Herbivore Bait',
+        prop       = 'p_opossum01x',
+        attracts   = { 'deer', 'buck', 'elk', 'bison', 'pronghorn', 'sheep', 'goat' },
+        spawnCount = { min = 1, max = 2 },
+        delay      = { min = 30, max = 60 },
+        lifetime   = 300,
+        spawnDist  = { min = 40, max = 60 },
+    },
+    predator_bait = {
+        label      = 'Predator Bait',
+        prop       = 'p_opossum01x',
+        attracts   = { 'wolf', 'cougar', 'bear', 'coyote' },
+        spawnCount = { min = 1, max = 2 },
+        delay      = { min = 30, max = 45 },
+        lifetime   = 300,
+        spawnDist  = { min = 50, max = 70 },
+    },
+}
+Config.MaxActiveBaits = 2
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Eagle Eye
+-- ──────────────────────────────────────────────────────────────────────────
+Config.EagleEye = {
+    radius   = 100.0,
+    duration = 15000,
+    cooldown = 45000,
+}
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Butcher / Selling
+-- ──────────────────────────────────────────────────────────────────────────
+
 -- Carcass prices (sold whole at butcher)
 Config.CarcassPrices = {
     deer_carcass   = 14,

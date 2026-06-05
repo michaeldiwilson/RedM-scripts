@@ -1,23 +1,31 @@
 local RSGCore = exports['rsg-core']:GetCoreObject()
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Skinning: give player meat + pelt + extras
+-- Skinning: give player meat + pelt + extras (quality-aware)
 -- ──────────────────────────────────────────────────────────────────────────
-RegisterNetEvent('mike-hunting:server:skin', function(netId, typeKey)
+RegisterNetEvent('mike-hunting:server:skin', function(netId, typeKey, quality)
     local src = source
     local P = RSGCore.Functions.GetPlayer(src); if not P then return end
     local animalData = Config.Animals[typeKey]; if not animalData then return end
 
-    -- Give meat
-    local meatQty = math.random(animalData.meat.min, animalData.meat.max)
+    quality = tonumber(quality) or 2
+    if quality < 1 then quality = 1 end
+    if quality > 3 then quality = 3 end
+    local qInfo = Config.QualityMultiplier[quality]
+    local stars = string.rep('★', quality) .. string.rep('☆', 3 - quality)
+
+    -- Give meat (scaled by quality)
+    local baseMeat = math.random(animalData.meat.min, animalData.meat.max)
+    local meatQty = math.max(1, math.floor(baseMeat * qInfo.meatMulti))
     P.Functions.AddItem(animalData.meat.item, meatQty)
     TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[animalData.meat.item], 'add', meatQty)
 
-    -- Give pelt
-    P.Functions.AddItem(animalData.pelt, 1)
-    TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[animalData.pelt], 'add', 1)
+    -- Give quality-prefixed pelt
+    local peltItem = qInfo.prefix .. animalData.pelt
+    P.Functions.AddItem(peltItem, 1)
+    TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[peltItem], 'add', 1)
 
-    -- Give extras (antlers, claws, etc.)
+    -- Give extras (antlers, claws, etc.) — unaffected by quality
     for _, extra in ipairs(animalData.extras) do
         P.Functions.AddItem(extra.item, extra.qty)
         TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[extra.item], 'add', extra.qty)
@@ -25,7 +33,7 @@ RegisterNetEvent('mike-hunting:server:skin', function(netId, typeKey)
 
     TriggerClientEvent('ox_lib:notify', src, {
         type = 'success',
-        description = ('Skinned %s: %d× %s, 1× %s'):format(animalData.label, meatQty, animalData.meat.item, animalData.pelt),
+        description = ('%s %s — %s: %d× %s, 1× %s'):format(stars, qInfo.label, animalData.label, meatQty, animalData.meat.item, peltItem),
     })
 
     -- Notify client about carcass (for wagon loading hint)
@@ -53,7 +61,8 @@ local meatPrices = {
     mutton     = 5,
 }
 
-local peltPrices = {
+-- Base pelt prices (2-star "Good")
+local basePeltPrices = {
     deer_pelt   = 8,
     elk_pelt    = 14,
     bear_pelt   = 25,
@@ -67,11 +76,31 @@ local peltPrices = {
     coyote_pelt = 6,
 }
 
+-- Build quality-tiered pelt prices from base prices
+local peltPrices = {}
+for peltItem, basePrice in pairs(basePeltPrices) do
+    peltPrices['poor_' .. peltItem]    = math.max(1, math.floor(basePrice * Config.QualityMultiplier[1].priceMulti))
+    peltPrices[peltItem]               = basePrice
+    peltPrices['perfect_' .. peltItem] = math.floor(basePrice * Config.QualityMultiplier[3].priceMulti)
+end
+
 local partPrices = {
     antlers     = 10,
     bear_claw   = 15,
     bison_horn  = 18,
     tusk        = 8,
+}
+
+-- Legendary pelt/part prices
+local legendaryPrices = {
+    legendary_bear_pelt   = 80,
+    legendary_cougar_pelt = 60,
+    legendary_elk_pelt    = 55,
+    legendary_wolf_pelt   = 45,
+    legendary_bison_pelt  = 90,
+    legendary_bear_claw   = 40,
+    legendary_antlers     = 35,
+    legendary_bison_horn  = 50,
 }
 
 local fishPrices = {
@@ -105,10 +134,11 @@ local fishPrices = {
     a_c_fishsteelheadtrout       = 14,
 }
 
-for item, price in pairs(meatPrices)  do sellableItems[item] = price end
-for item, price in pairs(peltPrices)  do sellableItems[item] = price end
-for item, price in pairs(partPrices)  do sellableItems[item] = price end
-for item, price in pairs(fishPrices)  do sellableItems[item] = price end
+for item, price in pairs(meatPrices)      do sellableItems[item] = price end
+for item, price in pairs(peltPrices)      do sellableItems[item] = price end
+for item, price in pairs(partPrices)      do sellableItems[item] = price end
+for item, price in pairs(fishPrices)      do sellableItems[item] = price end
+for item, price in pairs(legendaryPrices) do sellableItems[item] = price end
 
 RegisterNetEvent('mike-hunting:server:getButcherStock', function()
     local src = source

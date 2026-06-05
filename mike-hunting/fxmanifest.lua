@@ -12,15 +12,21 @@ shared_scripts {
 }
 
 client_scripts {
+    'client/quality.lua',
     'client/main.lua',
     'client/wagon.lua',
     'client/tanning.lua',
+    'client/legendary.lua',
+    'client/bait.lua',
+    'client/eagleeye.lua',
 }
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/main.lua',
     'server/tanning.lua',
+    'server/legendary.lua',
+    'server/bait.lua',
 }
 
 dependencies { 'rsg-core', 'rsg-inventory', 'ox_lib', 'ox_target', 'oxmysql' }

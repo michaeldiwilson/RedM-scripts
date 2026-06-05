@@ -10,6 +10,8 @@ const categoryMap = {
     copper_coil: 'moonshine',
     oak_barrel: 'moonshine',
     portable_still: 'moonshine',
+    herbivore_bait: 'hunting',
+    predator_bait: 'hunting',
     lockpick: 'general',
     tanning_rack: 'general',
     rope: 'general',

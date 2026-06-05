@@ -50,6 +50,21 @@ Config.Recipes = {
         qty       = 3,
         time      = 3000,   -- TODO: set back to 15000 after testing
     },
+    -- ── Hunting Bait ──
+    herbivore_bait = {
+        label  = 'Herbivore Bait',
+        inputs = { crop_corn = 2, crop_carrot = 1 },
+        output = 'herbivore_bait',
+        qty    = 3,
+        time   = 3000,   -- TODO: set back to 10000 after testing
+    },
+    predator_bait = {
+        label  = 'Predator Bait',
+        inputs = { game_meat = 2, fat = 1 },
+        output = 'predator_bait',
+        qty    = 3,
+        time   = 3000,   -- TODO: set back to 10000 after testing
+    },
     -- ── No blueprint needed ──
     tanning_rack = {
         label  = 'Tanning Rack',

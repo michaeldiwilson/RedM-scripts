@@ -1,15 +1,18 @@
 local skinnedAnimals = {}  -- netId -> true
 
--- Build hash lookup from config
-local animalHashLookup = {}
+-- Build hash lookup from config (shared with eagleeye.lua)
+AnimalHashLookup = {}
 for modelName, typeKey in pairs(Config.AnimalModels) do
-    animalHashLookup[joaat(modelName)] = typeKey
+    AnimalHashLookup[joaat(modelName)] = typeKey
 end
+
+-- Legendary entity tracking (populated by legendary.lua)
+LegendaryEntityLookup = {}  -- entity -> legendaryKey
 
 -- ──────────────────────────────────────────────────────────────────────────
 -- Track the nearest dead animal the player is standing next to.
 -- Updated every 500ms so we know which animal is being skinned when
--- EVENT_LOOT_COMPLETE fires.
+-- EVENT_LOOT_COMPLETE fires. Also snapshots weapon on first death detection.
 -- ──────────────────────────────────────────────────────────────────────────
 local nearestDeadAnimal = nil   -- { entity, typeKey, netId }
 
@@ -18,15 +21,22 @@ CreateThread(function()
         Wait(500)
         local ped = PlayerPedId()
         local p = GetEntityCoords(ped)
+        local currentWeapon = GetSelectedPedWeapon(ped)
         local best, bestDist, bestType = nil, Config.SkinRadius, nil
 
         for _, animal in pairs(GetGamePool('CPed') or {}) do
             if DoesEntityExist(animal) and IsPedDeadOrDying(animal, true) and not IsPedAPlayer(animal) then
                 local model = GetEntityModel(animal)
-                local typeKey = animalHashLookup[model]
+                local typeKey = AnimalHashLookup[model]
                 if typeKey then
                     local netId = NetworkGetNetworkIdFromEntity(animal)
                     if not skinnedAnimals[netId] then
+                        -- Snapshot weapon on first time seeing this animal dead
+                        if not SeenDeadAnimals[netId] then
+                            SeenDeadAnimals[netId] = true
+                            AnimalKillWeapon[netId] = currentWeapon
+                        end
+
                         local d = #(GetEntityCoords(animal) - p)
                         if d <= bestDist then
                             best = animal
@@ -78,8 +88,21 @@ CreateThread(function()
                     end
                 end)
 
-                -- Give custom items via server
-                TriggerServerEvent('mike-hunting:server:skin', animal.netId, animal.typeKey)
+                -- Check if this is a legendary animal
+                local legKey = LegendaryEntityLookup[animal.entity]
+                if legKey then
+                    TriggerServerEvent('mike-hunting:server:legendaryKilled', legKey)
+                    LegendaryEntityLookup[animal.entity] = nil
+                else
+                    -- Determine pelt quality from weapon used
+                    local weaponHash = AnimalKillWeapon[animal.netId] or 0
+                    local quality = DetermineQuality(animal.typeKey, weaponHash)
+                    TriggerServerEvent('mike-hunting:server:skin', animal.netId, animal.typeKey, quality)
+                end
+
+                -- Cleanup tracking tables
+                AnimalKillWeapon[animal.netId] = nil
+                SeenDeadAnimals[animal.netId] = nil
             end
         end
     end
