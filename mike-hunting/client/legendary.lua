@@ -3,6 +3,7 @@
 -- ──────────────────────────────────────────────────────────────────────────
 local spawnedLegendaries = {}  -- legendaryKey -> { entity, spawned = true }
 local notifiedLegendaries = {} -- legendaryKey -> true (prevent spam notifications)
+local legendaryBlips = {}      -- legendaryKey -> blip handle
 
 local function loadModel(hash)
     RequestModel(hash)
@@ -59,6 +60,19 @@ local function despawnLegendary(key, notifyServer)
         TriggerServerEvent('mike-hunting:server:legendaryDespawned', key)
     end
 end
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Map blips: show legendary animal territory on the map (like single player)
+-- ──────────────────────────────────────────────────────────────────────────
+CreateThread(function()
+    Wait(3000)
+    for key, def in pairs(Config.LegendaryAnimals) do
+        local blip = Citizen.InvokeNative(0x554D9D53F696D002, 1664425300, def.coords.x + 0.0, def.coords.y + 0.0, def.coords.z + 0.0)
+        SetBlipSprite(blip, joaat('blip_hunt_animal_clue'), true)
+        Citizen.InvokeNative(0x9CB1A1623062F402, blip, def.label)
+        legendaryBlips[key] = blip
+    end
+end)
 
 -- ──────────────────────────────────────────────────────────────────────────
 -- Proximity check: every 10 seconds, check if player is near spawn points
@@ -133,5 +147,9 @@ AddEventHandler('onResourceStop', function(r)
         for key in pairs(spawnedLegendaries) do
             despawnLegendary(key, true)
         end
+        for key, blip in pairs(legendaryBlips) do
+            if DoesBlipExist(blip) then RemoveBlip(blip) end
+        end
+        legendaryBlips = {}
     end
 end)
