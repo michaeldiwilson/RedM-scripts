@@ -89,11 +89,19 @@ local function spawnLegendary(key, def, coords, heading)
 
     SetModelAsNoLongerNeeded(hash)
     Citizen.InvokeNative(0x283978A15512B2FE, animal, true) -- SetRandomOutfitVariation
+    SetPedScale(animal, 1.3)  -- 30% bigger than normal
     SetEntityMaxHealth(animal, 800)
     SetEntityHealth(animal, 800)
     TaskWanderInArea(animal, coords.x, coords.y, spawnZ, def.wanderRadius, 0, 0)
 
-    spawnedLegendaries[key] = { entity = animal }
+    -- Attach a blip to the entity so you can track it
+    local entityBlip = Citizen.InvokeNative(0x23F74C2FDA6E7C61, 1664425300, animal)
+    if entityBlip and entityBlip ~= 0 then
+        SetBlipSprite(entityBlip, joaat('blip_hunt_animal_clue'), true)
+        Citizen.InvokeNative(0x9CB1A1623062F402, entityBlip, def.label)
+    end
+
+    spawnedLegendaries[key] = { entity = animal, blip = entityBlip }
     LegendaryEntityLookup[animal] = key
 
     lib.notify({
@@ -107,6 +115,11 @@ end
 local function despawnLegendary(key, notifyServer)
     local data = spawnedLegendaries[key]
     if not data then return end
+
+    -- Remove entity blip
+    if data.blip and DoesBlipExist(data.blip) then
+        RemoveBlip(data.blip)
+    end
 
     local entity = data.entity
     if entity then
