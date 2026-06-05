@@ -18,7 +18,6 @@ client_scripts {
     'client/tanning.lua',
     'client/legendary.lua',
     'client/bait.lua',
-    'client/eagleeye.lua',
 }
 
 server_scripts {
