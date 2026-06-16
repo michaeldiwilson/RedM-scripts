@@ -37,7 +37,7 @@ RegisterNetEvent('mike-property:client:sync', function(data)
     for id, claim in pairs(claimData) do
         if not claimBlips[id] then
             local blip = BlipAddForCoords(1664425300, claim.x + 0.0, claim.y + 0.0, claim.z + 0.0)
-            SetBlipSprite(blip, joaat('blip_shop_gunsmith'), true)
+            SetBlipSprite(blip, joaat('blip_camp'), true)
             SetBlipScale(blip, 0.6)
             SetBlipName(blip, 'Land Claim')
             claimBlips[id] = blip
@@ -255,7 +255,7 @@ CreateThread(function()
         officeZones[#officeZones + 1] = zid
 
         local blip = BlipAddForCoords(1664425300, office.coords)
-        SetBlipSprite(blip, joaat('blip_shop_gunsmith'), true)
+        SetBlipSprite(blip, joaat('blip_shop_store'), true)
         SetBlipScale(blip, 0.75)
         SetBlipName(blip, office.name)
     end

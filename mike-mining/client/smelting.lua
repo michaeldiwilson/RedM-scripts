@@ -63,7 +63,7 @@ CreateThread(function()
         furnaceZones[#furnaceZones + 1] = zid
 
         local blip = BlipAddForCoords(1664425300, f.coords)
-        SetBlipSprite(blip, joaat('blip_shop_gunsmith'), true)
+        SetBlipSprite(blip, joaat('blip_shop_blacksmith'), true)
         SetBlipScale(blip, 0.75)
         SetBlipName(blip, f.name)
         furnaceBlips[#furnaceBlips + 1] = blip

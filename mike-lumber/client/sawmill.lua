@@ -63,7 +63,7 @@ CreateThread(function()
         millZones[#millZones + 1] = zid
 
         local blip = BlipAddForCoords(1664425300, m.coords)
-        SetBlipSprite(blip, joaat('blip_shop_gunsmith'), true)
+        SetBlipSprite(blip, joaat('blip_shop_blacksmith'), true)
         SetBlipScale(blip, 0.75)
         SetBlipName(blip, m.name)
         millBlips[#millBlips + 1] = blip

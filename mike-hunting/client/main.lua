@@ -233,6 +233,12 @@ CreateThread(function()
             end
         end
 
+        -- Add butcher blip
+        local blip = Citizen.InvokeNative(0x554D9D53F696D002, 1664425300, b.coords.x + 0.0, b.coords.y + 0.0, b.coords.z + 0.0)
+        SetBlipSprite(blip, joaat('blip_shop_butcher'), true)
+        Citizen.InvokeNative(0x9CB1A1623062F402, blip, b.name)
+        butcherZones[#butcherZones + 1] = blip  -- reuse table for cleanup
+
         local zid = exports.ox_target:addSphereZone({
             coords = b.coords,
             radius = Config.ButcherRadius,

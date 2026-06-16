@@ -7,7 +7,7 @@ local depleted = {}
 local function addBlip(idx, node)
     if NodeBlips[idx] and DoesBlipExist(NodeBlips[idx]) then return end
     local blip = BlipAddForCoords(1664425300, vector3(node.x, node.y, node.z))
-    SetBlipSprite(blip, joaat('blip_shop_gunsmith'), true)
+    SetBlipSprite(blip, joaat('blip_shop_blacksmith'), true)
     SetBlipScale(blip, 0.9)
     SetBlipName(blip, ('%s ore deposit'):format(node.type))
     NodeBlips[idx] = blip

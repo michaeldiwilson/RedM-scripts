@@ -66,7 +66,7 @@ CreateThread(function()
 
         if shop.blip then
             local blip = BlipAddForCoords(1664425300, shop.coords)
-            SetBlipSprite(blip, joaat('blip_shop_gunsmith'), true)
+            SetBlipSprite(blip, joaat('blip_shop_store'), true)
             SetBlipScale(blip, 0.75)
             SetBlipName(blip, shop.name)
             shopBlips[#shopBlips + 1] = blip

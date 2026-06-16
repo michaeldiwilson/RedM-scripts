@@ -140,7 +140,7 @@ CreateThread(function()
         yardZones[#yardZones + 1] = zid
 
         local blip = BlipAddForCoords(1664425300, yard.coords)
-        SetBlipSprite(blip, joaat('blip_shop_gunsmith'), true)
+        SetBlipSprite(blip, joaat('blip_stable'), true)
         SetBlipScale(blip, 0.75)
         SetBlipName(blip, yard.name)
         yardBlips[#yardBlips + 1] = blip
