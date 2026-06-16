@@ -38,7 +38,7 @@ RegisterNetEvent('mike-cooking:client:placeCampfire', function()
     local fwd = GetEntityForwardVector(ped)
     local placeCoords = coords + fwd * 1.5
 
-    local hash = GetHashKey('p_campfirecook01x')
+    local hash = GetHashKey('p_campfire05x')
     if not loadModel(hash) then
         lib.notify({ type = 'error', description = 'Failed to place campfire' })
         return
