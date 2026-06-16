@@ -1,6 +1,23 @@
 local RSGCore = exports['rsg-core']:GetCoreObject()
 
 -- ──────────────────────────────────────────────────────────────────────────
+-- Portable campfire: use from inventory to place
+-- ──────────────────────────────────────────────────────────────────────────
+RSGCore.Functions.CreateUseableItem('portable_campfire', function(src, item)
+    local P = RSGCore.Functions.GetPlayer(src); if not P then return end
+    P.Functions.RemoveItem('portable_campfire', 1)
+    TriggerClientEvent('mike-cooking:client:placeCampfire', src)
+end)
+
+-- Pack up campfire: give item back
+RegisterNetEvent('mike-cooking:server:packCampfire', function()
+    local src = source
+    local P = RSGCore.Functions.GetPlayer(src); if not P then return end
+    P.Functions.AddItem('portable_campfire', 1)
+    TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items['portable_campfire'], 'add', 1)
+end)
+
+-- ──────────────────────────────────────────────────────────────────────────
 -- Cook callback: remove raw item, give cooked item
 -- ──────────────────────────────────────────────────────────────────────────
 lib.callback.register('mike-cooking:server:cook', function(source, rawItem)

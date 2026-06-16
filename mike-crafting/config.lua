@@ -50,6 +50,14 @@ Config.Recipes = {
         qty       = 3,
         time      = 3000,   -- TODO: set back to 15000 after testing
     },
+    -- ── Campfire ──
+    portable_campfire = {
+        label  = 'Campfire',
+        inputs = { firewood = 3 },
+        output = 'portable_campfire',
+        qty    = 1,
+        time   = 3000,   -- TODO: set back to 8000 after testing
+    },
     -- ── Hunting Bait ──
     herbivore_bait = {
         label  = 'Herbivore Bait',

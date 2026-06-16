@@ -3,6 +3,9 @@
     -- under "YOUR CUSTOM ITEMS" section
     -----------------------------------------------
 
+    -- Portable campfire
+    portable_campfire        = { name = 'portable_campfire',        label = 'Portable Campfire',   weight = 500, type = 'item', image = 'portable_campfire.png',   unique = false, useable = true,  shouldClose = true, description = 'A campfire kit for cooking in the wild' },
+
     -- Cooked fish
     cooked_fish              = { name = 'cooked_fish',              label = 'Cooked Fish',         weight = 100, type = 'item', image = 'cooked_fish.png',         unique = false, useable = true,  shouldClose = true, description = 'A nicely cooked piece of fish' },
 

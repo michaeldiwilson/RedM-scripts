@@ -1,7 +1,8 @@
 local RSGCore = exports['rsg-core']:GetCoreObject()
+local placedCampfires = {} -- id -> { prop, zoneId }
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Register ox_target on all campfire models
+-- Register ox_target on all world campfire models
 -- ──────────────────────────────────────────────────────────────────────────
 CreateThread(function()
     Wait(2000)
@@ -22,6 +23,78 @@ CreateThread(function()
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
+-- Place portable campfire from inventory
+-- ──────────────────────────────────────────────────────────────────────────
+local function loadModel(hash)
+    RequestModel(hash)
+    local t = GetGameTimer()
+    while not HasModelLoaded(hash) and GetGameTimer() - t < 5000 do Wait(10) end
+    return HasModelLoaded(hash)
+end
+
+RegisterNetEvent('mike-cooking:client:placeCampfire', function()
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    local fwd = GetEntityForwardVector(ped)
+    local placeCoords = coords + fwd * 1.5
+
+    local hash = GetHashKey('p_campfirecook01x')
+    if not loadModel(hash) then
+        lib.notify({ type = 'error', description = 'Failed to place campfire' })
+        return
+    end
+
+    local prop = CreateObject(hash, placeCoords.x, placeCoords.y, placeCoords.z, false, false, false, true, true)
+    PlaceObjectOnGroundProperly(prop)
+    FreezeEntityPosition(prop, true)
+    SetEntityAsMissionEntity(prop, true, true)
+    SetModelAsNoLongerNeeded(hash)
+
+    local campId = GetGameTimer()
+
+    local zid = exports.ox_target:addSphereZone({
+        coords = vector3(placeCoords.x, placeCoords.y, placeCoords.z),
+        radius = 2.5,
+        debug  = false,
+        options = {
+            {
+                name     = 'mike_cook_use_' .. campId,
+                label    = 'Cook',
+                icon     = 'fa-solid fa-fire',
+                onSelect = function() openCookMenu() end,
+            },
+            {
+                name     = 'mike_cook_pack_' .. campId,
+                label    = 'Pack up Campfire',
+                icon     = 'fa-solid fa-box',
+                onSelect = function()
+                    packCampfire(campId)
+                end,
+            },
+        },
+    })
+
+    placedCampfires[campId] = { prop = prop, zoneId = zid }
+    lib.notify({ type = 'success', description = 'Campfire placed' })
+end)
+
+function packCampfire(campId)
+    local data = placedCampfires[campId]
+    if not data then return end
+
+    if data.zoneId then exports.ox_target:removeZone(data.zoneId) end
+    if data.prop and DoesEntityExist(data.prop) then
+        SetEntityAsMissionEntity(data.prop, true, true)
+        DeleteEntity(data.prop)
+    end
+    placedCampfires[campId] = nil
+
+    -- Give the item back
+    TriggerServerEvent('mike-cooking:server:packCampfire')
+    lib.notify({ type = 'success', description = 'Campfire packed up' })
+end
+
+-- ──────────────────────────────────────────────────────────────────────────
 -- Cook menu: show what raw items the player has
 -- ──────────────────────────────────────────────────────────────────────────
 function openCookMenu()
@@ -34,7 +107,6 @@ function openCookMenu()
         if invItem and invItem.name then
             local recipe = Config.Recipes[invItem.name]
             if recipe then
-                local itemInfo = RSGCore.Shared.Items[invItem.name]
                 local outputInfo = RSGCore.Shared.Items[recipe.output]
                 local outputLabel = outputInfo and outputInfo.label or recipe.output
                 opts[#opts + 1] = {
@@ -77,3 +149,17 @@ function startCooking(rawItem, recipe)
         lib.notify({ type = 'success', description = ('Cooked %d× %s'):format(recipe.qty, recipe.output) })
     end
 end
+
+-- Cleanup on resource stop
+AddEventHandler('onResourceStop', function(r)
+    if r == GetCurrentResourceName() then
+        for campId, data in pairs(placedCampfires) do
+            if data.zoneId then exports.ox_target:removeZone(data.zoneId) end
+            if data.prop and DoesEntityExist(data.prop) then
+                SetEntityAsMissionEntity(data.prop, true, true)
+                DeleteEntity(data.prop)
+            end
+        end
+        placedCampfires = {}
+    end
+end)
