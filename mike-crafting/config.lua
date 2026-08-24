@@ -58,6 +58,14 @@ Config.Recipes = {
         qty    = 1,
         time   = 3000,   -- TODO: set back to 8000 after testing
     },
+    -- ── Fishing ──
+    fishing_net = {
+        label  = 'Fishing Net',
+        inputs = { rope = 3, oak_plank = 1 },
+        output = 'fishing_net',
+        qty    = 1,
+        time   = 3000,   -- TODO: set back to 15000 after testing
+    },
     -- ── Hunting Bait ──
     herbivore_bait = {
         label  = 'Herbivore Bait',

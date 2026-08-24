@@ -11,6 +11,7 @@ const categoryMap = {
     oak_barrel: 'moonshine',
     portable_still: 'moonshine',
     portable_campfire: 'general',
+    fishing_net: 'hunting',
     herbivore_bait: 'hunting',
     predator_bait: 'hunting',
     lockpick: 'general',
