@@ -108,36 +108,52 @@ lib.callback.register('mike-fishing:server:getNetInfo', function(source, netId)
     local ready = elapsed >= Config.NetCycleTime
     local remaining = ready and 0 or (Config.NetCycleTime - elapsed)
 
-    -- Calculate catch count
-    local baseCatch = math.random(1, Config.NetSlots)
-    if net.baited then baseCatch = math.min(baseCatch + 2, Config.NetSlots) end
+    local _, zoneName = getCatchTableForNet(net)
 
     return {
         ready = ready,
         remaining = remaining,
         baited = net.baited,
         owner_cid = net.owner_cid,
+        zone = zoneName,
     }
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Collect fish from net
+-- Collect fish from net — zone-based catch tables
 -- ──────────────────────────────────────────────────────────────────────────
-local function rollCatch()
-    -- Weighted random pick from catch table
+local function getCatchTableForNet(net)
+    local netCoords = vector3(net.x + 0.0, net.y + 0.0, net.z + 0.0)
+    local bestZone, bestDist = nil, math.huge
+
+    for _, zone in ipairs(Config.FishingZones) do
+        local d = #(netCoords - zone.center)
+        if d <= zone.radius and d < bestDist then
+            bestZone = zone
+            bestDist = d
+        end
+    end
+
+    if bestZone then
+        return bestZone.catch, bestZone.name
+    end
+    return Config.FallbackCatch, 'Open Water'
+end
+
+local function rollCatch(catchTable)
     local totalWeight = 0
-    for _, entry in ipairs(Config.CatchTable) do
+    for _, entry in ipairs(catchTable) do
         totalWeight = totalWeight + entry.weight
     end
     local roll = math.random(1, totalWeight)
     local cumulative = 0
-    for _, entry in ipairs(Config.CatchTable) do
+    for _, entry in ipairs(catchTable) do
         cumulative = cumulative + entry.weight
         if roll <= cumulative then
             return entry.item, entry.label
         end
     end
-    return Config.CatchTable[1].item, Config.CatchTable[1].label
+    return catchTable[1].item, catchTable[1].label
 end
 
 lib.callback.register('mike-fishing:server:collectFish', function(source, netId)
@@ -151,13 +167,16 @@ lib.callback.register('mike-fishing:server:collectFish', function(source, netId)
         return false
     end
 
+    -- Get zone-specific catch table
+    local catchTable, zoneName = getCatchTableForNet(net)
+
     -- Roll catches
     local catchCount = math.random(2, Config.NetSlots)
     if net.baited then catchCount = math.min(catchCount + 2, Config.NetSlots + 2) end
 
     local caught = {}
     for i = 1, catchCount do
-        local item, label = rollCatch()
+        local item, label = rollCatch(catchTable)
         P.Functions.AddItem(item, 1)
         caught[label] = (caught[label] or 0) + 1
     end

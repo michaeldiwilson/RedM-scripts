@@ -1,29 +1,114 @@
 Config = {}
 
-Config.NetProp     = 'mp007_p_fishnet_damage01x'
-Config.NetSlots    = 5          -- max fish per net per cycle
-Config.NetCycleTime = 10 * 60  -- seconds until fish are ready (10 min, set to 20-30 for prod)
-Config.MaxNets     = 3          -- max nets a player can have placed at once
+Config.NetProp      = 'mp007_p_fishnet_damage01x'
+Config.NetSlots     = 5          -- max fish per net per cycle
+Config.NetCycleTime = 10 * 60   -- seconds until fish are ready (10 min, set to 20-30 for prod)
+Config.MaxNets      = 3          -- max nets a player can have placed at once
 
--- Fish catch table: what fish can be caught and their relative weight (higher = more common)
-Config.CatchTable = {
+-- ──────────────────────────────────────────────────────────────────────────
+-- Fishing zones: each zone has a center, radius, and its own catch table
+-- Net uses the closest zone. If not in any zone, uses the fallback table.
+-- ──────────────────────────────────────────────────────────────────────────
+Config.FishingZones = {
+    -- ── Northern Rivers (Valentine, Ambarino, Dakota River) ──
+    {
+        name   = 'Northern Rivers',
+        center = vector3(-700.0, 700.0, 100.0),
+        radius = 800.0,
+        catch  = {
+            { item = 'a_c_fishrainbowtrout_01_ms',   label = 'Rainbow Trout',        weight = 10 },
+            { item = 'a_c_fishrainbowtrout_01_lg',   label = 'Large Rainbow Trout',  weight = 4 },
+            { item = 'a_c_fishsteelheadtrout',       label = 'Steelhead Trout',      weight = 3 },
+            { item = 'a_c_fishsalmonsockeye_01_ms',  label = 'Sockeye Salmon',       weight = 8 },
+            { item = 'a_c_fishsalmonsockeye_01_ml',  label = 'Sockeye Salmon (Med-Lg)', weight = 4 },
+            { item = 'a_c_fishsalmonsockeye_01_lg',  label = 'Large Sockeye Salmon', weight = 2 },
+            { item = 'a_c_fishchainpickerel_01_ms',  label = 'Chain Pickerel',       weight = 5 },
+            { item = 'a_c_fishredfinpickerel_01_ms', label = 'Redfin Pickerel',      weight = 6 },
+            { item = 'a_c_fishperch_01_ms',          label = 'Perch',                weight = 7 },
+        },
+    },
+
+    -- ── Lakes (Flat Iron Lake, Owanjila, O'Creagh's Run) ──
+    {
+        name   = 'Lakes',
+        center = vector3(600.0, -300.0, 80.0),
+        radius = 1200.0,
+        catch  = {
+            { item = 'a_c_fishlargemouthbass_01_ms', label = 'Largemouth Bass',      weight = 8 },
+            { item = 'a_c_fishlargemouthbass_01_lg', label = 'Large Largemouth Bass', weight = 3 },
+            { item = 'a_c_fishsmallmouthbass_01_ms', label = 'Smallmouth Bass',      weight = 8 },
+            { item = 'a_c_fishsmallmouthbass_01_lg', label = 'Large Smallmouth Bass', weight = 3 },
+            { item = 'a_c_fishbluegil_01_ms',        label = 'Bluegill',             weight = 10 },
+            { item = 'a_c_fishbluegil_01_sm',        label = 'Small Bluegill',       weight = 6 },
+            { item = 'a_c_fishmuskie_01_lg',         label = 'Muskie',               weight = 2 },
+            { item = 'a_c_fishlakesturgeon_01_lg',   label = 'Lake Sturgeon',        weight = 1 },
+            { item = 'a_c_fishperch_01_ms',          label = 'Perch',                weight = 8 },
+            { item = 'a_c_fishperch_01_sm',          label = 'Small Perch',          weight = 5 },
+        },
+    },
+
+    -- ── Swamps (Bayou Nwa, Bluewater Marsh, Lemoyne swamps) ──
+    {
+        name   = 'Swamps',
+        center = vector3(2200.0, -800.0, 42.0),
+        radius = 800.0,
+        catch  = {
+            { item = 'a_c_fishchannelcatfish_01_lg', label = 'Channel Catfish',       weight = 5 },
+            { item = 'a_c_fishchannelcatfish_01_xl', label = 'XL Channel Catfish',    weight = 2 },
+            { item = 'a_c_fishbullheadcat_01_ms',    label = 'Bullhead Catfish',      weight = 10 },
+            { item = 'a_c_fishbullheadcat_01_sm',    label = 'Small Bullhead Catfish', weight = 6 },
+            { item = 'a_c_fishlongnosegar_01_lg',    label = 'Longnose Gar',          weight = 4 },
+            { item = 'a_c_fishchainpickerel_01_ms',  label = 'Chain Pickerel',        weight = 7 },
+            { item = 'a_c_fishchainpickerel_01_sm',  label = 'Small Chain Pickerel',  weight = 5 },
+            { item = 'a_c_fishbluegil_01_ms',        label = 'Bluegill',              weight = 6 },
+        },
+    },
+
+    -- ── Southern Rivers (Lemoyne, Rhodes, Kamassa River) ──
+    {
+        name   = 'Southern Rivers',
+        center = vector3(1500.0, -600.0, 60.0),
+        radius = 700.0,
+        catch  = {
+            { item = 'a_c_fishperch_01_ms',          label = 'Perch',                weight = 10 },
+            { item = 'a_c_fishperch_01_sm',          label = 'Small Perch',          weight = 7 },
+            { item = 'a_c_fishrockbass_01_ms',       label = 'Rock Bass',            weight = 8 },
+            { item = 'a_c_fishrockbass_01_sm',       label = 'Small Rock Bass',      weight = 5 },
+            { item = 'a_c_fishredfinpickerel_01_ms', label = 'Redfin Pickerel',      weight = 7 },
+            { item = 'a_c_fishredfinpickerel_01_sm', label = 'Small Redfin Pickerel', weight = 4 },
+            { item = 'a_c_fishbluegil_01_ms',        label = 'Bluegill',             weight = 8 },
+            { item = 'a_c_fishlargemouthbass_01_ms', label = 'Largemouth Bass',      weight = 4 },
+            { item = 'a_c_fishnorthernpike_01_lg',   label = 'Northern Pike',        weight = 2 },
+        },
+    },
+
+    -- ── West Rivers (Upper Montana, near Strawberry/Blackwater) ──
+    {
+        name   = 'Western Rivers',
+        center = vector3(-1800.0, -1000.0, 100.0),
+        radius = 900.0,
+        catch  = {
+            { item = 'a_c_fishrainbowtrout_01_ms',   label = 'Rainbow Trout',        weight = 10 },
+            { item = 'a_c_fishrainbowtrout_01_lg',   label = 'Large Rainbow Trout',  weight = 4 },
+            { item = 'a_c_fishsteelheadtrout',       label = 'Steelhead Trout',      weight = 5 },
+            { item = 'a_c_fishsmallmouthbass_01_ms', label = 'Smallmouth Bass',      weight = 7 },
+            { item = 'a_c_fishsmallmouthbass_01_lg', label = 'Large Smallmouth Bass', weight = 3 },
+            { item = 'a_c_fishsalmonsockeye_01_ms',  label = 'Sockeye Salmon',       weight = 6 },
+            { item = 'a_c_fishsalmonsockeye_01_lg',  label = 'Large Sockeye Salmon', weight = 2 },
+            { item = 'a_c_fishnorthernpike_01_lg',   label = 'Northern Pike',        weight = 3 },
+            { item = 'a_c_fishperch_01_ms',          label = 'Perch',                weight = 5 },
+        },
+    },
+}
+
+-- Fallback catch table (if net is not near any zone)
+Config.FallbackCatch = {
     { item = 'a_c_fishbluegil_01_ms',        label = 'Bluegill',           weight = 10 },
     { item = 'a_c_fishbluegil_01_sm',        label = 'Small Bluegill',     weight = 8 },
     { item = 'a_c_fishperch_01_ms',          label = 'Perch',              weight = 10 },
     { item = 'a_c_fishperch_01_sm',          label = 'Small Perch',        weight = 8 },
-    { item = 'a_c_fishbullheadcat_01_ms',    label = 'Bullhead Catfish',   weight = 6 },
-    { item = 'a_c_fishrockbass_01_ms',       label = 'Rock Bass',          weight = 7 },
-    { item = 'a_c_fishrockbass_01_sm',       label = 'Small Rock Bass',    weight = 5 },
-    { item = 'a_c_fishredfinpickerel_01_ms', label = 'Redfin Pickerel',    weight = 6 },
-    { item = 'a_c_fishredfinpickerel_01_sm', label = 'Small Redfin Pickerel', weight = 4 },
-    { item = 'a_c_fishchainpickerel_01_ms',  label = 'Chain Pickerel',     weight = 4 },
-    { item = 'a_c_fishrainbowtrout_01_ms',   label = 'Rainbow Trout',      weight = 3 },
-    { item = 'a_c_fishsalmonsockeye_01_ms',  label = 'Sockeye Salmon',     weight = 3 },
-    { item = 'a_c_fishsmallmouthbass_01_ms', label = 'Smallmouth Bass',    weight = 3 },
-    { item = 'a_c_fishlargemouthbass_01_ms', label = 'Largemouth Bass',    weight = 2 },
-    { item = 'a_c_fishrainbowtrout_01_lg',   label = 'Large Rainbow Trout', weight = 1 },
-    { item = 'a_c_fishsalmonsockeye_01_lg',  label = 'Large Sockeye Salmon', weight = 1 },
-    { item = 'a_c_fishsteelheadtrout',       label = 'Steelhead Trout',    weight = 1 },
+    { item = 'a_c_fishredfinpickerel_01_ms', label = 'Redfin Pickerel',    weight = 5 },
+    { item = 'a_c_fishrockbass_01_ms',       label = 'Rock Bass',          weight = 5 },
 }
 
 -- Bait: optional, placing bait with the net increases catch count

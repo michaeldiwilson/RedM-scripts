@@ -86,13 +86,13 @@ function openNetMenu(netId)
     if info.ready then
         opts[#opts + 1] = {
             title       = 'Fish are ready!',
-            description = info.baited and 'Baited — extra catch' or 'Standard catch',
+            description = (info.zone or 'Open Water') .. (info.baited and ' — Baited, extra catch' or ''),
             icon        = 'fa-solid fa-check',
         }
     else
         local mins = math.ceil(info.remaining / 60)
         opts[#opts + 1] = {
-            title       = 'Fishing...',
+            title       = 'Fishing in ' .. (info.zone or 'Open Water') .. '...',
             description = ('%d min remaining%s'):format(mins, info.baited and ' (baited)' or ''),
             icon        = 'fa-solid fa-hourglass-half',
         }
