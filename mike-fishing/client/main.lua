@@ -22,9 +22,11 @@ local function spawnNet(net)
     SetModelAsNoLongerNeeded(hash)
     netProps[net.id] = obj
 
+    -- Use the prop's actual position for the zone (may differ from stored coords after ground placement)
+    local propCoords = GetEntityCoords(obj)
     local zid = exports.ox_target:addSphereZone({
-        coords = vector3(net.x, net.y, net.z),
-        radius = 2.5,
+        coords = vector3(propCoords.x, propCoords.y, propCoords.z),
+        radius = 3.5,
         debug  = false,
         options = {
             {
