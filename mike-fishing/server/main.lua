@@ -99,28 +99,7 @@ RSGCore.Functions.CreateUseableItem('fishing_net', function(src, item)
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Get net status (for menu)
--- ──────────────────────────────────────────────────────────────────────────
-lib.callback.register('mike-fishing:server:getNetInfo', function(source, netId)
-    local net = nets[netId]; if not net then return nil end
-    local now = os.time()
-    local elapsed = now - net.placed_at
-    local ready = elapsed >= Config.NetCycleTime
-    local remaining = ready and 0 or (Config.NetCycleTime - elapsed)
-
-    local _, zoneName = getCatchTableForNet(net)
-
-    return {
-        ready = ready,
-        remaining = remaining,
-        baited = net.baited,
-        owner_cid = net.owner_cid,
-        zone = zoneName,
-    }
-end)
-
--- ──────────────────────────────────────────────────────────────────────────
--- Collect fish from net — zone-based catch tables
+-- Zone-based catch tables (must be defined before callbacks that use them)
 -- ──────────────────────────────────────────────────────────────────────────
 local function getCatchTableForNet(net)
     local netCoords = vector3(net.x + 0.0, net.y + 0.0, net.z + 0.0)
@@ -156,6 +135,30 @@ local function rollCatch(catchTable)
     return catchTable[1].item, catchTable[1].label
 end
 
+-- ──────────────────────────────────────────────────────────────────────────
+-- Get net status (for menu)
+-- ──────────────────────────────────────────────────────────────────────────
+lib.callback.register('mike-fishing:server:getNetInfo', function(source, netId)
+    local net = nets[netId]; if not net then return nil end
+    local now = os.time()
+    local elapsed = now - net.placed_at
+    local ready = elapsed >= Config.NetCycleTime
+    local remaining = ready and 0 or (Config.NetCycleTime - elapsed)
+
+    local _, zoneName = getCatchTableForNet(net)
+
+    return {
+        ready = ready,
+        remaining = remaining,
+        baited = net.baited,
+        owner_cid = net.owner_cid,
+        zone = zoneName,
+    }
+end)
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Collect fish from net
+-- ──────────────────────────────────────────────────────────────────────────
 lib.callback.register('mike-fishing:server:collectFish', function(source, netId)
     local src = source
     local P = RSGCore.Functions.GetPlayer(src); if not P then return false end
