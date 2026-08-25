@@ -1,57 +1,40 @@
 let recipes = {};
-let inventory = {};
+let items = [];
+let inventoryMap = {};
 let currentCategory = 'all';
 let benchId = null;
 let isCrafting = false;
+let recipeQtys = {};
 
-// Category mapping for each recipe
-const categoryMap = {
-    copper_pot: 'moonshine',
-    copper_coil: 'moonshine',
-    oak_barrel: 'moonshine',
-    portable_still: 'moonshine',
-    portable_campfire: 'general',
-    fishing_net: 'hunting',
-    herbivore_bait: 'hunting',
-    predator_bait: 'hunting',
-    lockpick: 'general',
-    tanning_rack: 'general',
-    rope: 'general',
-    cloth: 'general',
-    wagon_wheel: 'wagon_parts',
-    wagon_axle: 'wagon_parts',
-    wagon_frame: 'wagon_parts',
-    wagon_seat: 'wagon_parts',
-    wagon_kit_work: 'wagon_assembly',
-    wagon_kit_covered: 'wagon_assembly',
-    wagon_kit_hunting: 'wagon_assembly',
-    cure_rabbit: 'tanning',
-    cure_deer: 'tanning',
-    cure_boar: 'tanning',
-    cure_elk: 'tanning',
-    cure_cougar: 'tanning',
-    cure_wolf: 'tanning',
-    cure_bear: 'tanning',
-    cure_bison: 'tanning',
-    cure_sheep: 'tanning',
-    cure_goat: 'tanning',
-    cure_coyote: 'tanning',
-};
-
-// Image path helper
 function getImage(itemName) {
     return `nui://rsg-inventory/html/images/${itemName}.png`;
 }
 
-// Listen for messages from Lua
+function buildInventoryMap(itemList) {
+    const map = {};
+    for (const item of itemList) {
+        if (item && item.name) {
+            map[item.name] = (map[item.name] || 0) + (item.amount || 0);
+        }
+    }
+    return map;
+}
+
+// ── NUI Messages ──
 window.addEventListener('message', (event) => {
     const data = event.data;
 
     if (data.action === 'open') {
         recipes = data.recipes || {};
-        inventory = data.inventory || {};
+        items = data.items || [];
+        inventoryMap = buildInventoryMap(items);
         benchId = data.benchId;
+        recipeQtys = {};
+
+        document.getElementById('crafting-title').textContent = data.title || 'Crafting';
         document.getElementById('crafting-ui').classList.remove('hidden');
+        renderCategoryTabs();
+        renderInventory();
         renderRecipes();
     }
 
@@ -59,47 +42,94 @@ window.addEventListener('message', (event) => {
         document.getElementById('crafting-ui').classList.add('hidden');
     }
 
-    if (data.action === 'updateInventory') {
-        inventory = data.inventory || {};
+    if (data.action === 'updateInventory' || data.action === 'craftDone') {
+        if (data.items) {
+            items = data.items;
+            inventoryMap = buildInventoryMap(items);
+        } else if (data.inventory) {
+            inventoryMap = data.inventory;
+        }
+        isCrafting = false;
+        hideProgress();
+        renderInventory();
         renderRecipes();
     }
 
     if (data.action === 'craftProgress') {
         showProgress(data.label, data.duration);
     }
-
-    if (data.action === 'craftDone') {
-        isCrafting = false;
-        hideProgress();
-        inventory = data.inventory || inventory;
-        renderRecipes();
-    }
 });
 
-// Category buttons
-document.querySelectorAll('.cat-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentCategory = btn.dataset.cat;
-        renderRecipes();
-    });
-});
-
-function renderRecipes() {
-    const grid = document.getElementById('recipes-grid');
+// ── Render Inventory (Left Panel) ──
+function renderInventory() {
+    const grid = document.getElementById('inventory-grid');
     grid.innerHTML = '';
 
+    for (const item of items) {
+        if (!item || !item.name || item.amount <= 0) continue;
+
+        const slot = document.createElement('div');
+        slot.className = 'inv-slot';
+        slot.dataset.item = item.name;
+
+        const label = item.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        slot.innerHTML = `
+            <img src="${getImage(item.name)}" alt="${item.name}" onerror="this.style.display='none'">
+            <span class="inv-count">${item.amount}</span>
+            <span class="inv-label">${label}</span>
+        `;
+        grid.appendChild(slot);
+    }
+}
+
+// ── Render Category Tabs ──
+function renderCategoryTabs() {
+    const container = document.getElementById('category-tabs');
+    container.innerHTML = '';
+
+    const categories = new Set(['all']);
     for (const [key, recipe] of Object.entries(recipes)) {
-        const cat = categoryMap[key] || 'general';
+        categories.add(recipe.category || 'general');
+    }
+
+    const labels = {
+        all: 'All',
+        general: 'General',
+        hunting: 'Hunting',
+        moonshine: 'Moonshine',
+        wagon_parts: 'Wagon Parts',
+        wagon_assembly: 'Wagons',
+        tanning: 'Tanning',
+    };
+
+    for (const cat of categories) {
+        const btn = document.createElement('button');
+        btn.className = `cat-tab ${cat === currentCategory ? 'active' : ''}`;
+        btn.textContent = labels[cat] || cat;
+        btn.addEventListener('click', () => {
+            currentCategory = cat;
+            document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderRecipes();
+        });
+        container.appendChild(btn);
+    }
+}
+
+// ── Render Recipes (Right Panel) ──
+function renderRecipes() {
+    const list = document.getElementById('recipes-list');
+    list.innerHTML = '';
+
+    for (const [key, recipe] of Object.entries(recipes)) {
+        const cat = recipe.category || 'general';
         if (currentCategory !== 'all' && cat !== currentCategory) continue;
 
-        // Check if player has all ingredients
         let canCraft = true;
         const ingredientHTML = [];
 
         for (const [item, needed] of Object.entries(recipe.inputs)) {
-            const have = inventory[item] || 0;
+            const have = inventoryMap[item] || 0;
             const hasEnough = have >= needed;
             if (!hasEnough) canCraft = false;
 
@@ -107,57 +137,101 @@ function renderRecipes() {
             ingredientHTML.push(`
                 <div class="ingredient ${hasEnough ? 'has' : 'missing'}">
                     <img src="${getImage(item)}" alt="${item}" onerror="this.style.display='none'">
-                    <span class="ing-name">${itemLabel}</span>
-                    <span class="ing-count">${have}/${needed}</span>
+                    <span>${itemLabel}</span>
+                    <span style="font-weight:bold">${have}/${needed}</span>
                 </div>
             `);
         }
 
-        const outputQty = recipe.qty > 1 ? `x${recipe.qty}` : '';
-        const outputImage = getImage(recipe.output);
+        const outputQty = recipe.qty > 1 ? ` x${recipe.qty}` : '';
+        const qty = recipeQtys[key] || 1;
 
         const card = document.createElement('div');
         card.className = `recipe-card ${canCraft ? '' : 'disabled'}`;
+        card.dataset.key = key;
         card.innerHTML = `
             <div class="recipe-top">
-                <img class="recipe-icon" src="${outputImage}" alt="${recipe.output}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22/>'">
+                <img class="recipe-icon" src="${getImage(recipe.output)}" alt="${recipe.output}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22/>'">
                 <div class="recipe-info">
-                    <div class="recipe-name">${recipe.label || recipe.output}</div>
-                    <div class="recipe-output">${recipe.output} ${outputQty}</div>
+                    <div class="recipe-name">${recipe.label}${outputQty}</div>
+                    <div class="recipe-output">${recipe.output.replace(/_/g, ' ')}</div>
                 </div>
             </div>
             <div class="recipe-ingredients">
                 ${ingredientHTML.join('')}
             </div>
-            <div class="qty-row">
-                <input type="number" class="qty-input" value="1" min="1" max="99" onclick="event.stopPropagation()">
-                <button class="craft-btn ${canCraft ? '' : 'disabled'}" ${canCraft ? '' : 'disabled'}>CRAFT</button>
+            <div class="recipe-bottom">
+                <div class="qty-controls">
+                    <button class="qty-btn" data-key="${key}" data-delta="-1">-</button>
+                    <div class="qty-display" id="qty-${key}">${qty}</div>
+                    <button class="qty-btn" data-key="${key}" data-delta="1">+</button>
+                </div>
+                <button class="craft-btn ${canCraft ? '' : 'disabled'}" data-key="${key}" ${canCraft ? '' : 'disabled'}>CRAFT</button>
             </div>
         `;
 
-        if (canCraft) {
-            const craftBtn = card.querySelector('.craft-btn');
-            const qtyInput = card.querySelector('.qty-input');
-            craftBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (isCrafting) return;
-                const qty = parseInt(qtyInput.value) || 1;
-                startCraft(key, qty);
-            });
-        }
+        // Hover: highlight ingredients on left panel
+        card.addEventListener('mouseenter', () => highlightIngredients(key));
+        card.addEventListener('mouseleave', () => clearHighlights());
 
-        grid.appendChild(card);
+        list.appendChild(card);
     }
 
-    if (grid.children.length === 0) {
-        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #666; padding: 40px;">No recipes available in this category</div>';
+    // Attach qty button listeners
+    document.querySelectorAll('.qty-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const key = btn.dataset.key;
+            const delta = parseInt(btn.dataset.delta);
+            const current = recipeQtys[key] || 1;
+            const newQty = Math.max(1, Math.min(99, current + delta));
+            recipeQtys[key] = newQty;
+            document.getElementById(`qty-${key}`).textContent = newQty;
+        });
+    });
+
+    // Attach craft button listeners
+    document.querySelectorAll('.craft-btn:not(.disabled)').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isCrafting) return;
+            const key = btn.dataset.key;
+            const qty = recipeQtys[key] || 1;
+            startCraft(key, qty);
+        });
+    });
+
+    if (list.children.length === 0) {
+        list.innerHTML = '<div style="text-align:center; color:#666; padding:40px;">No recipes available in this category</div>';
     }
 }
 
+// ── Highlight Ingredients ──
+function highlightIngredients(recipeKey) {
+    clearHighlights();
+    const recipe = recipes[recipeKey];
+    if (!recipe) return;
+
+    for (const [item, needed] of Object.entries(recipe.inputs)) {
+        const have = inventoryMap[item] || 0;
+        const slots = document.querySelectorAll(`.inv-slot[data-item="${item}"]`);
+        slots.forEach(slot => {
+            slot.classList.add(have >= needed ? 'highlight-has' : 'highlight-missing');
+        });
+    }
+}
+
+function clearHighlights() {
+    document.querySelectorAll('.inv-slot').forEach(slot => {
+        slot.classList.remove('highlight-has', 'highlight-missing');
+    });
+}
+
+// ── Crafting ──
 function startCraft(recipeKey, qty) {
     if (isCrafting) return;
     isCrafting = true;
-    fetch(`https://mike-crafting/craft`, {
+    fetch('https://mike-crafting/craft', {
         method: 'POST',
         body: JSON.stringify({ benchId, recipeKey, qty })
     });
@@ -177,10 +251,7 @@ function showProgress(label, duration) {
         const elapsed = Date.now() - startTime;
         const pct = Math.min((elapsed / duration) * 100, 100);
         bar.style.width = pct + '%';
-
-        if (pct >= 100) {
-            clearInterval(interval);
-        }
+        if (pct >= 100) clearInterval(interval);
     }, 50);
 }
 
@@ -194,9 +265,6 @@ function closeUI() {
     fetch('https://mike-crafting/close', { method: 'POST', body: '{}' });
 }
 
-// ESC to close
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        closeUI();
-    }
+    if (e.key === 'Escape') closeUI();
 });

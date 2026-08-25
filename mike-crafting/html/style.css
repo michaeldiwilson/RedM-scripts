@@ -27,8 +27,8 @@ body {
 }
 
 .crafting-container {
-    width: 900px;
-    max-height: 650px;
+    width: 1100px;
+    height: 700px;
     background: linear-gradient(145deg, #1a1209 0%, #2a1e10 50%, #1a1209 100%);
     border: 3px solid #8b6914;
     border-radius: 8px;
@@ -38,19 +38,19 @@ body {
     overflow: hidden;
 }
 
-/* Header */
+/* ── Header ── */
 .crafting-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 25px;
+    padding: 12px 20px;
     background: linear-gradient(180deg, #2a1e10 0%, #1a1209 100%);
     border-bottom: 2px solid #8b6914;
 }
 
 .crafting-header h1 {
     font-family: 'Rye', cursive;
-    font-size: 24px;
+    font-size: 22px;
     color: #d4a847;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
     letter-spacing: 2px;
@@ -60,9 +60,9 @@ body {
     background: none;
     border: 1px solid #8b6914;
     color: #d4a847;
-    font-size: 18px;
-    width: 35px;
-    height: 35px;
+    font-size: 16px;
+    width: 32px;
+    height: 32px;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
@@ -73,167 +73,213 @@ body {
     color: #1a1209;
 }
 
-/* Body */
+/* ── Body (split screen) ── */
 .crafting-body {
     display: flex;
     flex: 1;
     overflow: hidden;
 }
 
-/* Sidebar */
-.category-sidebar {
-    width: 160px;
-    padding: 10px;
-    background: rgba(0,0,0,0.3);
-    border-right: 1px solid #5a4520;
+/* ── Left Panel (Inventory) ── */
+.left-panel {
+    width: 380px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    overflow-y: auto;
+    border-right: 2px solid #5a4520;
+    background: rgba(0,0,0,0.2);
 }
 
-.cat-btn {
-    padding: 10px 12px;
+.panel-title {
+    font-family: 'Rye', cursive;
+    font-size: 14px;
+    color: #d4a847;
+    padding: 10px 15px;
+    border-bottom: 1px solid #5a4520;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.inventory-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    padding: 10px;
+    overflow-y: auto;
+    align-content: start;
+}
+
+.inv-slot {
+    aspect-ratio: 1;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid #3a2a14;
+    border-radius: 4px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.inv-slot img {
+    width: 80%;
+    height: 80%;
+    object-fit: contain;
+}
+
+.inv-count {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #e8d5b0;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.9);
+}
+
+.inv-label {
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    font-size: 8px;
+    color: #a08050;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 2px;
+}
+
+.inv-slot.highlight-has {
+    border-color: #6dbe45;
+    box-shadow: 0 0 10px rgba(109, 190, 69, 0.4);
+    background: rgba(109, 190, 69, 0.1);
+}
+
+.inv-slot.highlight-missing {
+    border-color: #c44040;
+    box-shadow: 0 0 10px rgba(196, 64, 64, 0.4);
+    background: rgba(196, 64, 64, 0.1);
+}
+
+/* ── Right Panel (Recipes) ── */
+.right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.category-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #5a4520;
+}
+
+.cat-tab {
+    padding: 6px 12px;
     background: rgba(139, 105, 20, 0.15);
     border: 1px solid #5a4520;
     border-radius: 4px;
     color: #c4a467;
     font-family: 'IM Fell English', serif;
-    font-size: 13px;
+    font-size: 12px;
     cursor: pointer;
-    text-align: left;
     transition: all 0.2s;
 }
 
-.cat-btn:hover {
+.cat-tab:hover {
     background: rgba(139, 105, 20, 0.3);
     border-color: #8b6914;
 }
 
-.cat-btn.active {
+.cat-tab.active {
     background: rgba(139, 105, 20, 0.4);
     border-color: #d4a847;
     color: #d4a847;
 }
 
-/* Recipes Grid */
-.recipes-grid {
+.recipes-list {
     flex: 1;
-    padding: 15px;
     overflow-y: auto;
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    align-content: start;
-}
-
-.recipes-grid::-webkit-scrollbar {
-    width: 6px;
-}
-
-.recipes-grid::-webkit-scrollbar-track {
-    background: rgba(0,0,0,0.2);
-}
-
-.recipes-grid::-webkit-scrollbar-thumb {
-    background: #5a4520;
-    border-radius: 3px;
-}
-
-/* Recipe Card */
-.recipe-card {
-    background: linear-gradient(135deg, rgba(42, 30, 16, 0.9) 0%, rgba(26, 18, 9, 0.9) 100%);
-    border: 1px solid #5a4520;
-    border-radius: 6px;
-    padding: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
+    padding: 10px 12px;
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
+/* ── Recipe Card ── */
+.recipe-card {
+    background: linear-gradient(135deg, rgba(42, 30, 16, 0.9) 0%, rgba(26, 18, 9, 0.9) 100%);
+    border: 1px solid #5a4520;
+    border-radius: 6px;
+    padding: 10px;
+    transition: all 0.2s;
+}
+
 .recipe-card:hover {
-    border-color: #d4a847;
-    box-shadow: 0 0 15px rgba(212, 168, 71, 0.15);
-    transform: translateY(-1px);
+    border-color: #8b6914;
+    box-shadow: 0 0 10px rgba(212, 168, 71, 0.1);
 }
 
-.recipe-card.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.recipe-card.disabled:hover {
-    border-color: #5a4520;
-    box-shadow: none;
-    transform: none;
-}
+.recipe-card.disabled { opacity: 0.5; }
 
 .recipe-top {
     display: flex;
     align-items: center;
     gap: 10px;
+    margin-bottom: 8px;
 }
 
 .recipe-icon {
-    width: 64px;
-    height: 64px;
+    width: 48px;
+    height: 48px;
     border: 1px solid #5a4520;
     border-radius: 4px;
     background: rgba(0,0,0,0.4);
     object-fit: contain;
-    padding: 4px;
+    padding: 3px;
 }
 
-.recipe-info {
-    flex: 1;
-}
+.recipe-info { flex: 1; }
 
 .recipe-name {
     font-family: 'Rye', cursive;
-    font-size: 14px;
+    font-size: 13px;
     color: #d4a847;
 }
 
 .recipe-output {
     font-size: 11px;
     color: #a08050;
-    margin-top: 2px;
+    margin-top: 1px;
 }
 
 .recipe-ingredients {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
+    margin-bottom: 8px;
 }
 
 .ingredient {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     background: rgba(0,0,0,0.3);
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
     border: 1px solid rgba(90, 69, 32, 0.5);
 }
 
 .ingredient img {
-    width: 28px;
-    height: 28px;
+    width: 22px;
+    height: 22px;
     object-fit: contain;
-}
-
-.ing-name {
-    flex: 1;
-    font-size: 11px;
-    opacity: 0.85;
-}
-
-.ing-count {
-    font-weight: bold;
-    font-size: 12px;
 }
 
 .ingredient.has {
@@ -246,15 +292,58 @@ body {
     border-color: rgba(196, 64, 64, 0.3);
 }
 
+.recipe-bottom {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qty-controls {
+    display: flex;
+    align-items: center;
+}
+
+.qty-btn {
+    width: 26px;
+    height: 26px;
+    background: rgba(139, 105, 20, 0.3);
+    border: 1px solid #5a4520;
+    color: #d4a847;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.qty-btn:hover { background: rgba(139, 105, 20, 0.5); }
+.qty-btn:first-child { border-radius: 3px 0 0 3px; }
+.qty-btn:last-child { border-radius: 0 3px 3px 0; }
+
+.qty-display {
+    width: 36px;
+    height: 26px;
+    background: rgba(0,0,0,0.4);
+    border-top: 1px solid #5a4520;
+    border-bottom: 1px solid #5a4520;
+    color: #e8d5b0;
+    font-family: 'IM Fell English', serif;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .craft-btn {
-    width: 100%;
-    padding: 8px;
+    flex: 1;
+    padding: 6px 12px;
     background: linear-gradient(180deg, #8b6914 0%, #6a5010 100%);
     border: 1px solid #d4a847;
     border-radius: 4px;
     color: #1a1209;
     font-family: 'Rye', cursive;
-    font-size: 12px;
+    font-size: 11px;
     cursor: pointer;
     transition: all 0.2s;
     letter-spacing: 1px;
@@ -271,11 +360,11 @@ body {
     cursor: not-allowed;
 }
 
-/* Footer / Progress */
+/* ── Footer / Progress ── */
 .crafting-footer {
-    padding: 10px 25px;
+    padding: 8px 20px;
     border-top: 1px solid #5a4520;
-    min-height: 20px;
+    min-height: 16px;
 }
 
 #progress-container {
@@ -284,7 +373,7 @@ body {
     border-radius: 4px;
     overflow: hidden;
     position: relative;
-    height: 30px;
+    height: 28px;
 }
 
 #progress-bar {
@@ -299,32 +388,24 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 12px;
+    font-size: 11px;
     color: #e8d5b0;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
 }
 
-/* Quantity input */
-.qty-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    justify-content: space-between;
+/* ── Scrollbars ── */
+.inventory-grid::-webkit-scrollbar,
+.recipes-list::-webkit-scrollbar {
+    width: 6px;
 }
 
-.qty-input {
-    width: 50px;
-    padding: 4px 8px;
-    background: rgba(0,0,0,0.4);
-    border: 1px solid #5a4520;
+.inventory-grid::-webkit-scrollbar-track,
+.recipes-list::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.2);
+}
+
+.inventory-grid::-webkit-scrollbar-thumb,
+.recipes-list::-webkit-scrollbar-thumb {
+    background: #5a4520;
     border-radius: 3px;
-    color: #e8d5b0;
-    font-family: 'IM Fell English', serif;
-    font-size: 13px;
-    text-align: center;
-}
-
-.qty-input:focus {
-    outline: none;
-    border-color: #d4a847;
 }

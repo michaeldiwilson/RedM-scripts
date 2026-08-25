@@ -58,59 +58,75 @@ RegisterNetEvent('mike-crafting:client:removeBench', function(benchId)
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Craft menu
+-- Get full inventory for NUI (deduped items + count map)
+-- ──────────────────────────────────────────────────────────────────────────
+function getFullInventory()
+    local pd = RSGCore.Functions.GetPlayerData()
+    if not pd or not pd.items then return {}, {} end
+
+    local counts = {}
+    for _, invItem in pairs(pd.items) do
+        if invItem and invItem.name and (invItem.amount or 0) > 0 then
+            counts[invItem.name] = (counts[invItem.name] or 0) + (invItem.amount or 0)
+        end
+    end
+
+    local items = {}
+    for name, amount in pairs(counts) do
+        items[#items + 1] = { name = name, amount = amount }
+    end
+
+    table.sort(items, function(a, b) return a.name < b.name end)
+    return items, counts
+end
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Unified craft menu: works for both bench and portable (crafting book)
 -- ──────────────────────────────────────────────────────────────────────────
 function openCraftMenu(bid)
-    -- Build recipe list (filter by blueprints)
+    local isPortable = (bid == 'portable')
+
     local visibleRecipes = {}
     for key, r in pairs(Config.Recipes) do
+        if isPortable and not r.portable then goto continue end
         if r.blueprint then
             local has = exports['rsg-inventory']:HasItem(r.blueprint, 1)
             if not has then goto continue end
         end
         visibleRecipes[key] = {
-            label   = r.label or ('Craft ' .. r.output),
-            inputs  = r.inputs,
-            output  = r.output,
-            qty     = r.qty or 1,
-            time    = r.time,
+            label    = r.label or ('Craft ' .. r.output),
+            inputs   = r.inputs,
+            output   = r.output,
+            qty      = r.qty or 1,
+            time     = r.time,
+            portable = r.portable or false,
+            category = r.category or 'general',
         }
         ::continue::
     end
 
-    -- Get player inventory counts
-    local inv = getInventoryCounts(visibleRecipes)
+    local items, counts = getFullInventory()
 
-    -- Open NUI
     SetNuiFocus(true, true)
     SendNUIMessage({
-        action  = 'open',
-        recipes = visibleRecipes,
-        inventory = inv,
-        benchId = bid,
+        action    = 'open',
+        recipes   = visibleRecipes,
+        inventory = counts,
+        items     = items,
+        benchId   = bid,
+        mode      = isPortable and 'portable' or 'bench',
+        title     = isPortable and 'Crafting' or 'Crafting Bench',
     })
 end
 
-function getInventoryCounts(recipeList)
-    local items = {}
-    local pd = RSGCore.Functions.GetPlayerData()
-    if not pd or not pd.items then return items end
-
-    for _, r in pairs(recipeList) do
-        for item, _ in pairs(r.inputs) do
-            if not items[item] then
-                local count = 0
-                for _, invItem in pairs(pd.items) do
-                    if invItem and invItem.name == item then
-                        count = count + (invItem.amount or 0)
-                    end
-                end
-                items[item] = count
-            end
-        end
-    end
-    return items
+-- Portable crafting (crafting book) → same NUI
+function openPortableCraftMenu()
+    openCraftMenu('portable')
 end
+
+RegisterNetEvent('mike-crafting:client:openPortable', function()
+    openPortableCraftMenu()
+end)
 
 -- NUI Callbacks
 RegisterNUICallback('craft', function(data, cb)
@@ -128,11 +144,19 @@ end)
 
 function startCraftNUI(bid, recipeKey, batch)
     local recipe = Config.Recipes[recipeKey]; if not recipe then return end
+    local isPortable = (bid == 'portable')
     batch = math.max(1, tonumber(batch) or 1)
+
     for i = 1, batch do
-        local canCraft = lib.callback.await('mike-crafting:server:checkMaterials', false, bid, recipeKey)
+        local canCraft
+        if isPortable then
+            canCraft = lib.callback.await('mike-crafting:server:checkPortable', false, recipeKey)
+        else
+            canCraft = lib.callback.await('mike-crafting:server:checkMaterials', false, bid, recipeKey)
+        end
         if not canCraft then
-            SendNUIMessage({ action = 'craftDone', inventory = getInventoryCounts(Config.Recipes) })
+            local items, counts = getFullInventory()
+            SendNUIMessage({ action = 'craftDone', inventory = counts, items = items })
             return
         end
 
@@ -144,35 +168,21 @@ function startCraftNUI(bid, recipeKey, batch)
 
         Wait(recipe.time)
 
-        local ok = lib.callback.await('mike-crafting:server:craft', false, bid, recipeKey)
+        local ok
+        if isPortable then
+            ok = lib.callback.await('mike-crafting:server:craftPortable', false, recipeKey)
+        else
+            ok = lib.callback.await('mike-crafting:server:craft', false, bid, recipeKey)
+        end
         if not ok then
-            SendNUIMessage({ action = 'craftDone', inventory = getInventoryCounts(Config.Recipes) })
+            local items, counts = getFullInventory()
+            SendNUIMessage({ action = 'craftDone', inventory = counts, items = items })
             return
         end
     end
-    SendNUIMessage({ action = 'craftDone', inventory = getInventoryCounts(Config.Recipes) })
-end
 
-function startCraft(benchId, recipeKey, batch)
-    local recipe = Config.Recipes[recipeKey]; if not recipe then return end
-    batch = math.max(1, tonumber(batch) or 1)
-    for i = 1, batch do
-        -- Check materials BEFORE starting progress bar
-        local canCraft = lib.callback.await('mike-crafting:server:checkMaterials', false, benchId, recipeKey)
-        if not canCraft then return end
-        if not lib.progressBar({
-            duration = recipe.time,
-            label    = ('Crafting %s (%d/%d)...'):format(recipe.label or recipe.output, i, batch),
-            useWhileDead = false,
-            canCancel = true,
-            disable  = { move = true, car = true, combat = true },
-        }) then
-            lib.notify({ type = 'error', description = 'Crafting cancelled' })
-            return
-        end
-        local ok = lib.callback.await('mike-crafting:server:craft', false, benchId, recipeKey)
-        if not ok then return end
-    end
+    local items, counts = getFullInventory()
+    SendNUIMessage({ action = 'craftDone', inventory = counts, items = items })
 end
 
 -- ──────────────────────────────────────────────────────────────────────────
@@ -183,81 +193,6 @@ RegisterNetEvent('mike-crafting:client:syncBenches', function(benches)
         TriggerEvent('mike-crafting:client:spawnBench', b.id, b.x, b.y, b.z, b.heading)
     end
 end)
-
--- ──────────────────────────────────────────────────────────────────────────
--- Portable crafting: /craft command opens menu for basic recipes
--- ──────────────────────────────────────────────────────────────────────────
--- Crafting book: use from inventory to open portable crafting menu
-RegisterNetEvent('mike-crafting:client:openPortable', function()
-    openPortableCraftMenu()
-end)
-
-function openPortableCraftMenu()
-    local RSGCore = exports['rsg-core']:GetCoreObject()
-    local pd = RSGCore.Functions.GetPlayerData()
-    if not pd or not pd.items then return end
-
-    local opts = {}
-    for key, r in pairs(Config.Recipes) do
-        if r.portable then
-            -- Check if player has materials
-            local canCraft = true
-            local ingredientParts = {}
-            for item, needed in pairs(r.inputs) do
-                local have = 0
-                for _, invItem in pairs(pd.items) do
-                    if invItem and invItem.name == item then
-                        have = have + (invItem.amount or 0)
-                    end
-                end
-                local itemLabel = item:gsub('_', ' '):gsub('%b%w', string.upper)
-                ingredientParts[#ingredientParts + 1] = ('%d/%d %s'):format(have, needed, item)
-                if have < needed then canCraft = false end
-            end
-
-            local outputInfo = RSGCore.Shared.Items[r.output]
-            local outputLabel = outputInfo and outputInfo.label or r.output
-            local outputQty = r.qty and r.qty > 1 and (' x' .. r.qty) or ''
-
-            opts[#opts + 1] = {
-                title       = r.label .. outputQty,
-                description = table.concat(ingredientParts, ', '),
-                icon        = canCraft and 'fa-solid fa-hammer' or 'fa-solid fa-lock',
-                disabled    = not canCraft,
-                onSelect    = function()
-                    startPortableCraft(key)
-                end,
-            }
-        end
-    end
-
-    if #opts == 0 then
-        return lib.notify({ type = 'inform', description = 'No portable recipes available' })
-    end
-
-    lib.registerContext({ id = 'mike_portable_craft', title = 'Crafting', options = opts })
-    lib.showContext('mike_portable_craft')
-end
-
-function startPortableCraft(recipeKey)
-    local recipe = Config.Recipes[recipeKey]; if not recipe then return end
-
-    local canCraft = lib.callback.await('mike-crafting:server:checkPortable', false, recipeKey)
-    if not canCraft then return end
-
-    if not lib.progressBar({
-        duration     = recipe.time,
-        label        = 'Crafting ' .. (recipe.label or recipe.output) .. '...',
-        useWhileDead = false,
-        canCancel    = true,
-        disable      = { move = true, car = true, combat = true },
-    }) then
-        lib.notify({ type = 'error', description = 'Crafting cancelled' })
-        return
-    end
-
-    lib.callback.await('mike-crafting:server:craftPortable', false, recipeKey)
-end
 
 AddEventHandler('onResourceStop', function(r)
     if r == GetCurrentResourceName() then

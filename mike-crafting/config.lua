@@ -10,105 +10,115 @@ Config.BenchRecipe = {
     time   = 10000,
 }
 
--- Recipes available at the placed bench (and some portable)
--- portable = true means craftable anywhere from inventory
--- blueprint = 'item_name' means recipe is hidden unless player has that item
 Config.Recipes = {
     -- ── Advanced (bench only) ──
     copper_pot = {
-        label  = 'Copper Pot',
-        inputs = { copper_bar = 5, firewood = 2 },
-        output = 'copper_pot',
-        qty    = 1,
-        time   = 3000,   -- TODO: set back to 30000 after testing
+        label    = 'Copper Pot',
+        category = 'moonshine',
+        inputs   = { copper_bar = 5, firewood = 2 },
+        output   = 'copper_pot',
+        qty      = 1,
+        time     = 3000,
     },
     copper_coil = {
-        label  = 'Copper Coil',
-        inputs = { copper_bar = 3 },
-        output = 'copper_coil',
-        qty    = 1,
-        time   = 3000,   -- TODO: set back to 20000 after testing
+        label    = 'Copper Coil',
+        category = 'moonshine',
+        inputs   = { copper_bar = 3 },
+        output   = 'copper_coil',
+        qty      = 1,
+        time     = 3000,
     },
     oak_barrel = {
-        label  = 'Oak Barrel',
-        inputs = { oak_plank = 4, nails = 10 },
-        output = 'oak_barrel',
-        qty    = 1,
-        time   = 3000,   -- TODO: set back to 30000 after testing
+        label    = 'Oak Barrel',
+        category = 'moonshine',
+        inputs   = { oak_plank = 4, nails = 10 },
+        output   = 'oak_barrel',
+        qty      = 1,
+        time     = 3000,
     },
     portable_still = {
         label     = 'Portable Still',
+        category  = 'moonshine',
         blueprint = 'still_blueprint',
         inputs    = { copper_pot = 1, copper_coil = 1, oak_barrel = 1 },
         output    = 'portable_still',
         qty       = 1,
-        time      = 5000,   -- TODO: set back to 60000 after testing
+        time      = 5000,
     },
     lockpick = {
         label     = 'Lockpick',
+        category  = 'general',
         blueprint = 'lockpick_blueprint',
         inputs    = { iron_bar = 1, nails = 5 },
         output    = 'lockpick',
         qty       = 3,
-        time      = 3000,   -- TODO: set back to 15000 after testing
+        time      = 3000,
     },
     -- ── Wagon components (bench only) ──
     wagon_wheel = {
-        label  = 'Wagon Wheel',
-        inputs = { oak_plank = 2, nails = 5, iron_bar = 1 },
-        output = 'wagon_wheel',
-        qty    = 1,
-        time   = 3000,   -- TODO: set back to 15000 after testing
+        label    = 'Wagon Wheel',
+        category = 'wagon_parts',
+        inputs   = { oak_plank = 2, nails = 5, iron_bar = 1 },
+        output   = 'wagon_wheel',
+        qty      = 1,
+        time     = 3000,
     },
     wagon_axle = {
-        label  = 'Wagon Axle',
-        inputs = { oak_plank = 2, nails = 3, iron_bar = 1 },
-        output = 'wagon_axle',
-        qty    = 1,
-        time   = 3000,   -- TODO: set back to 12000 after testing
+        label    = 'Wagon Axle',
+        category = 'wagon_parts',
+        inputs   = { oak_plank = 2, nails = 3, iron_bar = 1 },
+        output   = 'wagon_axle',
+        qty      = 1,
+        time     = 3000,
     },
     wagon_frame = {
-        label  = 'Wagon Frame',
-        inputs = { oak_plank = 4, nails = 10, iron_bar = 2 },
-        output = 'wagon_frame',
-        qty    = 1,
-        time   = 5000,   -- TODO: set back to 25000 after testing
+        label    = 'Wagon Frame',
+        category = 'wagon_parts',
+        inputs   = { oak_plank = 4, nails = 10, iron_bar = 2 },
+        output   = 'wagon_frame',
+        qty      = 1,
+        time     = 5000,
     },
     wagon_seat = {
-        label  = 'Wagon Seat',
-        inputs = { oak_plank = 2, cloth = 1 },
-        output = 'wagon_seat',
-        qty    = 1,
-        time   = 3000,   -- TODO: set back to 10000 after testing
+        label    = 'Wagon Seat',
+        category = 'wagon_parts',
+        inputs   = { oak_plank = 2, cloth = 1 },
+        output   = 'wagon_seat',
+        qty      = 1,
+        time     = 3000,
     },
     -- ── Wagon assembly (bench + blueprint) ──
     wagon_kit_work = {
         label     = 'Assemble Work Wagon',
+        category  = 'wagon_assembly',
         blueprint = 'wagon_blueprint',
         inputs    = { wagon_wheel = 4, wagon_axle = 2, wagon_frame = 1, wagon_seat = 1 },
         output    = 'wagon_kit_work',
         qty       = 1,
-        time      = 5000,   -- TODO: set back to 45000 after testing
+        time      = 5000,
     },
     wagon_kit_covered = {
         label     = 'Assemble Covered Wagon',
+        category  = 'wagon_assembly',
         blueprint = 'wagon_blueprint',
         inputs    = { wagon_wheel = 4, wagon_axle = 2, wagon_frame = 1, wagon_seat = 1, cloth = 4, leather = 2 },
         output    = 'wagon_kit_covered',
         qty       = 1,
-        time      = 5000,   -- TODO: set back to 60000 after testing
+        time      = 5000,
     },
     wagon_kit_hunting = {
         label     = 'Assemble Hunting Wagon',
+        category  = 'wagon_assembly',
         blueprint = 'wagon_blueprint',
         inputs    = { wagon_wheel = 4, wagon_axle = 2, wagon_frame = 1, wagon_seat = 1, leather = 6 },
         output    = 'wagon_kit_hunting',
         qty       = 1,
-        time      = 5000,   -- TODO: set back to 50000 after testing
+        time      = 5000,
     },
     -- ── Portable (craftable anywhere via crafting book) ──
     portable_craftbench = {
         label    = 'Crafting Bench',
+        category = 'general',
         inputs   = { oak_plank = 4, nails = 10 },
         output   = 'portable_craftbench',
         qty      = 1,
@@ -117,58 +127,65 @@ Config.Recipes = {
     },
     rope = {
         label    = 'Rope',
+        category = 'general',
         inputs   = { crop_cotton = 3 },
         output   = 'rope',
         qty      = 1,
-        time     = 3000,   -- TODO: set back to 8000 after testing
+        time     = 3000,
         portable = true,
     },
     cloth = {
         label    = 'Cloth',
+        category = 'general',
         inputs   = { crop_cotton = 3 },
         output   = 'cloth',
         qty      = 1,
-        time     = 3000,   -- TODO: set back to 10000 after testing
+        time     = 3000,
         portable = true,
     },
     herbivore_bait = {
         label    = 'Herbivore Bait',
+        category = 'hunting',
         inputs   = { crop_corn = 2, crop_carrot = 1 },
         output   = 'herbivore_bait',
         qty      = 3,
-        time     = 3000,   -- TODO: set back to 10000 after testing
+        time     = 3000,
         portable = true,
     },
     predator_bait = {
         label    = 'Predator Bait',
+        category = 'hunting',
         inputs   = { game_meat = 2, fat = 1 },
         output   = 'predator_bait',
         qty      = 3,
-        time     = 3000,   -- TODO: set back to 10000 after testing
+        time     = 3000,
         portable = true,
     },
     portable_campfire = {
         label    = 'Campfire',
+        category = 'general',
         inputs   = { firewood = 3 },
         output   = 'portable_campfire',
         qty      = 1,
-        time     = 3000,   -- TODO: set back to 8000 after testing
+        time     = 3000,
         portable = true,
     },
     fishing_net = {
         label    = 'Fishing Net',
+        category = 'hunting',
         inputs   = { rope = 3, oak_plank = 1 },
         output   = 'fishing_net',
         qty      = 1,
-        time     = 3000,   -- TODO: set back to 15000 after testing
+        time     = 3000,
         portable = true,
     },
     tanning_rack = {
         label    = 'Tanning Rack',
+        category = 'general',
         inputs   = { oak_plank = 3, nails = 5, rope = 2 },
         output   = 'tanning_rack',
         qty      = 1,
-        time     = 3000,   -- TODO: set back to 20000 after testing
+        time     = 3000,
         portable = true,
     },
 }
