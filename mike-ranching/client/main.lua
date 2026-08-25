@@ -34,29 +34,33 @@ function startLeading(animalId)
 
             local animalCoords = GetEntityCoords(ped)
 
+            -- Get zones from server
+            local zones = lib.callback.await('mike-ranching:server:getZones', false) or {}
+
             -- Check pasture zone
-            if Config.PastureZone then
-                local d = #(animalCoords - Config.PastureZone.coords)
-                if d <= Config.PastureZone.radius then
+            if zones.pasture then
+                local pCoords = vector3(zones.pasture.x, zones.pasture.y, zones.pasture.z)
+                local d = #(animalCoords - pCoords)
+                if d <= Config.PastureRadius then
                     lib.notify({ type = 'success', description = (a and a.name or 'Animal') .. ' is grazing in the pasture', duration = 3000 })
                     TriggerServerEvent('mike-ranching:server:animalInZone', animalId, 'pasture',
                         animalCoords.x, animalCoords.y, animalCoords.z)
                     stopLeading()
-                    -- Make animal wander in the pasture
-                    TaskWanderInArea(ped, Config.PastureZone.coords.x, Config.PastureZone.coords.y, Config.PastureZone.coords.z, Config.PastureZone.radius, 0, 0)
+                    TaskWanderInArea(ped, pCoords.x, pCoords.y, pCoords.z, Config.PastureRadius, 0, 0)
                     break
                 end
             end
 
             -- Check water zone
-            if Config.WaterZone then
-                local d = #(animalCoords - Config.WaterZone.coords)
-                if d <= Config.WaterZone.radius then
+            if zones.water then
+                local wCoords = vector3(zones.water.x, zones.water.y, zones.water.z)
+                local d = #(animalCoords - wCoords)
+                if d <= Config.WaterRadius then
                     lib.notify({ type = 'success', description = (a and a.name or 'Animal') .. ' is drinking at the water source', duration = 3000 })
                     TriggerServerEvent('mike-ranching:server:animalInZone', animalId, 'water',
                         animalCoords.x, animalCoords.y, animalCoords.z)
                     stopLeading()
-                    TaskWanderInArea(ped, Config.WaterZone.coords.x, Config.WaterZone.coords.y, Config.WaterZone.coords.z, Config.WaterZone.radius, 0, 0)
+                    TaskWanderInArea(ped, wCoords.x, wCoords.y, wCoords.z, Config.WaterRadius, 0, 0)
                     break
                 end
             end
@@ -369,6 +373,22 @@ function openTraderMenu()
                     title    = 'Manage Employees',
                     icon     = 'fa-solid fa-users',
                     onSelect = function() openEmployeeMenu() end,
+                }
+                opts[#opts + 1] = {
+                    title       = 'Set Pasture Zone',
+                    description = 'Walk to the grazing area and set it here',
+                    icon        = 'fa-solid fa-leaf',
+                    onSelect    = function()
+                        lib.callback.await('mike-ranching:server:setZone', false, 'pasture')
+                    end,
+                }
+                opts[#opts + 1] = {
+                    title       = 'Set Water Zone',
+                    description = 'Walk to a water source and set it here',
+                    icon        = 'fa-solid fa-water',
+                    onSelect    = function()
+                        lib.callback.await('mike-ranching:server:setZone', false, 'water')
+                    end,
                 }
                 opts[#opts + 1] = {
                     title    = ('Sell Ranch ($%d)'):format(Config.Ranch.sellBack),

@@ -12,18 +12,11 @@ Config.Ranch = {
 }
 
 -- ── Grazing & Watering Zones ──
--- Animals within these zones passively restore hunger/thirst
-Config.PastureZone = {
-    coords = vector3(-1590.89, -1423.93, 81.36),  -- same as animal area (open grass)
-    radius = 30.0,
-    restoreRate = 1,     -- hunger restored per tick (every 60s)
-}
-
-Config.WaterZone = {
-    coords = vector3(-1558.0, -1452.0, 80.0),  -- nearby river/water source (adjust to actual water)
-    radius = 15.0,
-    restoreRate = 2,     -- thirst restored per tick
-}
+-- Owner sets these in-game via trader menu. Stored in DB.
+Config.PastureRadius = 30.0
+Config.PastureRestoreRate = 1   -- hunger restored per tick (every 60s)
+Config.WaterRadius = 15.0
+Config.WaterRestoreRate = 2     -- thirst restored per tick
 
 -- ── Trader NPC (buy ranch + buy animals) ──
 Config.Trader = {

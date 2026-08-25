@@ -88,18 +88,20 @@ CreateThread(function()
             a.thirst = math.max(0, a.thirst - Config.ThirstDecayPerTick)
 
             -- Passive grazing: if animal is in pasture zone, slowly restore hunger
-            if Config.PastureZone then
-                local d = math.sqrt((a.x - Config.PastureZone.coords.x)^2 + (a.y - Config.PastureZone.coords.y)^2)
-                if d <= Config.PastureZone.radius then
-                    a.hunger = math.min(Config.MaxHunger, a.hunger + Config.PastureZone.restoreRate)
+            if RanchZones and RanchZones.pasture then
+                local pz = RanchZones.pasture
+                local d = math.sqrt((a.x - pz.x)^2 + (a.y - pz.y)^2)
+                if d <= Config.PastureRadius then
+                    a.hunger = math.min(Config.MaxHunger, a.hunger + Config.PastureRestoreRate)
                 end
             end
 
             -- Passive drinking: if animal is in water zone, slowly restore thirst
-            if Config.WaterZone then
-                local d = math.sqrt((a.x - Config.WaterZone.coords.x)^2 + (a.y - Config.WaterZone.coords.y)^2)
-                if d <= Config.WaterZone.radius then
-                    a.thirst = math.min(Config.MaxThirst, a.thirst + Config.WaterZone.restoreRate)
+            if RanchZones and RanchZones.water then
+                local wz = RanchZones.water
+                local d = math.sqrt((a.x - wz.x)^2 + (a.y - wz.y)^2)
+                if d <= Config.WaterRadius then
+                    a.thirst = math.min(Config.MaxThirst, a.thirst + Config.WaterRestoreRate)
                 end
             end
 

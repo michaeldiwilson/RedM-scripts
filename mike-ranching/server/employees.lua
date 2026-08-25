@@ -13,6 +13,17 @@ CreateThread(function()
         )
     ]])
     MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS mike_ranch_zones (
+            id         INT AUTO_INCREMENT PRIMARY KEY,
+            ranch_id   INT NOT NULL,
+            zone_type  VARCHAR(20) NOT NULL,
+            x          FLOAT NOT NULL,
+            y          FLOAT NOT NULL,
+            z          FLOAT NOT NULL,
+            FOREIGN KEY (ranch_id) REFERENCES mike_ranches(id) ON DELETE CASCADE
+        )
+    ]])
+    MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS mike_ranch_employees (
             id            INT AUTO_INCREMENT PRIMARY KEY,
             ranch_id      INT NOT NULL,
@@ -29,6 +40,7 @@ end)
 -- ──────────────────────────────────────────────────────────────────────────
 RanchData = nil  -- { id, owner_cid, ranch_key }
 RanchEmployees = {}  -- { { id, employee_cid, rank }, ... }
+RanchZones = {}  -- { pasture = {x,y,z} or nil, water = {x,y,z} or nil }
 
 function LoadRanch()
     local rows = MySQL.query.await('SELECT * FROM mike_ranches WHERE ranch_key = ?', { Config.Ranch.key })
@@ -36,9 +48,17 @@ function LoadRanch()
         RanchData = rows[1]
         local empRows = MySQL.query.await('SELECT * FROM mike_ranch_employees WHERE ranch_id = ?', { RanchData.id })
         RanchEmployees = empRows or {}
+
+        -- Load zones
+        RanchZones = {}
+        local zoneRows = MySQL.query.await('SELECT * FROM mike_ranch_zones WHERE ranch_id = ?', { RanchData.id })
+        for _, z in ipairs(zoneRows or {}) do
+            RanchZones[z.zone_type] = { x = z.x, y = z.y, z = z.z }
+        end
     else
         RanchData = nil
         RanchEmployees = {}
+        RanchZones = {}
     end
 end
 
@@ -263,6 +283,40 @@ lib.callback.register('mike-ranching:server:getEmployees', function(source)
         }
     end
     return employees
+end)
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Set pasture/water zone (owner places at their current position)
+-- ──────────────────────────────────────────────────────────────────────────
+lib.callback.register('mike-ranching:server:setZone', function(source, zoneType)
+    local src = source
+    local cid = GetPlayerCid(src); if not cid then return false end
+    if not HasPermission(cid, 'hire_fire') then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'Only the owner can set zones' })
+        return false
+    end
+    if zoneType ~= 'pasture' and zoneType ~= 'water' then return false end
+
+    local ped = GetPlayerPed(src)
+    local coords = GetEntityCoords(ped)
+
+    -- Remove old zone of this type
+    MySQL.query('DELETE FROM mike_ranch_zones WHERE ranch_id = ? AND zone_type = ?', { RanchData.id, zoneType })
+
+    -- Insert new
+    MySQL.insert.await('INSERT INTO mike_ranch_zones (ranch_id, zone_type, x, y, z) VALUES (?, ?, ?, ?, ?)',
+        { RanchData.id, zoneType, coords.x, coords.y, coords.z })
+
+    RanchZones[zoneType] = { x = coords.x, y = coords.y, z = coords.z }
+
+    local label = zoneType == 'pasture' and 'Pasture' or 'Water'
+    TriggerClientEvent('ox_lib:notify', src, { type = 'success', description = ('%s zone set at your location'):format(label) })
+    return true
+end)
+
+-- Get zones (for client)
+lib.callback.register('mike-ranching:server:getZones', function(source)
+    return RanchZones
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
