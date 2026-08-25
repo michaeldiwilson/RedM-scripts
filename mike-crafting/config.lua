@@ -106,7 +106,15 @@ Config.Recipes = {
         qty       = 1,
         time      = 5000,   -- TODO: set back to 50000 after testing
     },
-    -- ── Portable (craftable anywhere) ──
+    -- ── Portable (craftable anywhere via crafting book) ──
+    portable_craftbench = {
+        label    = 'Crafting Bench',
+        inputs   = { oak_plank = 4, nails = 10 },
+        output   = 'portable_craftbench',
+        qty      = 1,
+        time     = 5000,
+        portable = true,
+    },
     rope = {
         label    = 'Rope',
         inputs   = { crop_cotton = 3 },

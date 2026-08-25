@@ -133,6 +133,11 @@ end)
 -- ──────────────────────────────────────────────────────────────────────────
 -- Portable crafting: check + craft without a bench
 -- ──────────────────────────────────────────────────────────────────────────
+-- Crafting book: useable item that opens portable crafting menu
+RSGCore.Functions.CreateUseableItem('crafting_book', function(src, item)
+    TriggerClientEvent('mike-crafting:client:openPortable', src)
+end)
+
 lib.callback.register('mike-crafting:server:checkPortable', function(source, recipeKey)
     local src = source
     local P = RSGCore.Functions.GetPlayer(src); if not P then return false end

@@ -187,9 +187,10 @@ end)
 -- ──────────────────────────────────────────────────────────────────────────
 -- Portable crafting: /craft command opens menu for basic recipes
 -- ──────────────────────────────────────────────────────────────────────────
-RegisterCommand('craft', function()
+-- Crafting book: use from inventory to open portable crafting menu
+RegisterNetEvent('mike-crafting:client:openPortable', function()
     openPortableCraftMenu()
-end, false)
+end)
 
 function openPortableCraftMenu()
     local RSGCore = exports['rsg-core']:GetCoreObject()
