@@ -21,12 +21,10 @@ local function buildCraftingShopItems(portableOnly)
 
         shopItems[#shopItems + 1] = {
             name        = r.output,
-            price       = 1,  -- needs non-zero for shop to show, but crafting patch ignores money
+            price       = nil,  -- no price shown, crafting patch handles material costs
             amount      = 999,
             info        = {
-                craftKey    = key,
                 craftInputs = r.inputs,
-                craftTime   = r.time,
                 craftQty    = r.qty or 1,
                 description = 'Requires: ' .. table.concat(parts, ', '),
             },
