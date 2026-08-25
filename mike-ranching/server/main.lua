@@ -87,6 +87,22 @@ CreateThread(function()
             -- Thirst decay
             a.thirst = math.max(0, a.thirst - Config.ThirstDecayPerTick)
 
+            -- Passive grazing: if animal is in pasture zone, slowly restore hunger
+            if Config.PastureZone then
+                local d = math.sqrt((a.x - Config.PastureZone.coords.x)^2 + (a.y - Config.PastureZone.coords.y)^2)
+                if d <= Config.PastureZone.radius then
+                    a.hunger = math.min(Config.MaxHunger, a.hunger + Config.PastureZone.restoreRate)
+                end
+            end
+
+            -- Passive drinking: if animal is in water zone, slowly restore thirst
+            if Config.WaterZone then
+                local d = math.sqrt((a.x - Config.WaterZone.coords.x)^2 + (a.y - Config.WaterZone.coords.y)^2)
+                if d <= Config.WaterZone.radius then
+                    a.thirst = math.min(Config.MaxThirst, a.thirst + Config.WaterZone.restoreRate)
+                end
+            end
+
             -- Growth: only if fed enough
             if a.scale < Config.Growth.MaxScale and a.hunger >= Config.Growth.MinHungerToGrow then
                 a.scale = math.min(Config.Growth.MaxScale, a.scale + Config.Growth.ScaleIncrease)
@@ -99,6 +115,15 @@ CreateThread(function()
 
         if changed then broadcast() end
     end
+end)
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Animal led to zone: update position in DB
+-- ──────────────────────────────────────────────────────────────────────────
+RegisterNetEvent('mike-ranching:server:animalInZone', function(animalId, zoneType, x, y, z)
+    local a = animals[animalId]; if not a then return end
+    a.x = x; a.y = y; a.z = z
+    MySQL.query('UPDATE mike_ranch_animals SET x = ?, y = ?, z = ? WHERE id = ?', { x, y, z, animalId })
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
@@ -133,10 +158,11 @@ lib.callback.register('mike-ranching:server:buyAnimal', function(source, animalT
 
     P.Functions.RemoveMoney('cash', typeDef.price)
 
-    -- Spawn near ranch center with random offset
-    local rx = Config.Ranch.coords.x + math.random(-15, 15)
-    local ry = Config.Ranch.coords.y + math.random(-15, 15)
-    local rz = Config.Ranch.coords.z
+    -- Spawn near the animal area with random offset
+    local spawnCenter = Config.Ranch.animalArea or Config.Ranch.coords
+    local rx = spawnCenter.x + math.random(-15, 15)
+    local ry = spawnCenter.y + math.random(-15, 15)
+    local rz = spawnCenter.z
     local now = os.time()
 
     local id = MySQL.insert.await(

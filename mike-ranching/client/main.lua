@@ -5,6 +5,78 @@ local animalZones = {}
 local traderPed = nil
 local traderZone = nil
 
+local leadingAnimal = nil  -- animal ID currently being led
+local leadingThread = nil  -- thread handle
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Herding: lead animal to pasture/water
+-- ──────────────────────────────────────────────────────────────────────────
+function startLeading(animalId)
+    if leadingAnimal then stopLeading() end
+
+    local ped = animalPeds[animalId]
+    if not ped or not DoesEntityExist(ped) then return end
+
+    leadingAnimal = animalId
+    local a = animalData[animalId]
+
+    -- Make animal follow the player
+    SetBlockingOfNonTemporaryEvents(ped, false)
+    TaskFollowToOffsetOfEntity(ped, PlayerPedId(), 0.0, -2.0, 0.0, 1.0, -1, 2.0, true, false, false, false, false, false)
+
+    lib.notify({ type = 'inform', description = 'Leading ' .. (a and a.name or 'animal') .. ' — walk to pasture or water', duration = 4000 })
+
+    -- Thread to check if animal reaches pasture/water zones
+    CreateThread(function()
+        while leadingAnimal == animalId do
+            Wait(2000)
+            if not ped or not DoesEntityExist(ped) then break end
+
+            local animalCoords = GetEntityCoords(ped)
+
+            -- Check pasture zone
+            if Config.PastureZone then
+                local d = #(animalCoords - Config.PastureZone.coords)
+                if d <= Config.PastureZone.radius then
+                    lib.notify({ type = 'success', description = (a and a.name or 'Animal') .. ' is grazing in the pasture', duration = 3000 })
+                    TriggerServerEvent('mike-ranching:server:animalInZone', animalId, 'pasture',
+                        animalCoords.x, animalCoords.y, animalCoords.z)
+                    stopLeading()
+                    -- Make animal wander in the pasture
+                    TaskWanderInArea(ped, Config.PastureZone.coords.x, Config.PastureZone.coords.y, Config.PastureZone.coords.z, Config.PastureZone.radius, 0, 0)
+                    break
+                end
+            end
+
+            -- Check water zone
+            if Config.WaterZone then
+                local d = #(animalCoords - Config.WaterZone.coords)
+                if d <= Config.WaterZone.radius then
+                    lib.notify({ type = 'success', description = (a and a.name or 'Animal') .. ' is drinking at the water source', duration = 3000 })
+                    TriggerServerEvent('mike-ranching:server:animalInZone', animalId, 'water',
+                        animalCoords.x, animalCoords.y, animalCoords.z)
+                    stopLeading()
+                    TaskWanderInArea(ped, Config.WaterZone.coords.x, Config.WaterZone.coords.y, Config.WaterZone.coords.z, Config.WaterZone.radius, 0, 0)
+                    break
+                end
+            end
+        end
+    end)
+end
+
+function stopLeading()
+    if leadingAnimal then
+        local ped = animalPeds[leadingAnimal]
+        if ped and DoesEntityExist(ped) then
+            SetBlockingOfNonTemporaryEvents(ped, true)
+            local coords = GetEntityCoords(ped)
+            TaskWanderInArea(ped, coords.x, coords.y, coords.z, 10.0, 0, 0)
+        end
+        leadingAnimal = nil
+        lib.notify({ type = 'inform', description = 'Stopped leading', duration = 2000 })
+    end
+end
+
 local function loadModel(hash)
     RequestModel(hash)
     local t = GetGameTimer()
@@ -39,24 +111,23 @@ local function spawnAnimal(a)
     TaskWanderInArea(ped, a.x + 0.0, a.y + 0.0, a.z + 0.0, 10.0, 0, 0)
     animalPeds[a.id] = ped
 
-    local zid = exports.ox_target:addSphereZone({
-        coords = vector3(a.x, a.y, a.z),
-        radius = 4.0,
-        debug  = false,
-        options = {
-            {
-                name     = 'mike_ranch_' .. a.id,
-                label    = a.name or 'Animal',
-                icon     = 'fa-solid fa-paw',
-                onSelect = function() openAnimalMenu(a.id) end,
-            },
+    -- Attach target to the actual ped so it follows the animal as it wanders
+    local zid = exports.ox_target:addLocalEntity(ped, {
+        {
+            name     = 'mike_ranch_' .. a.id,
+            label    = a.name or 'Animal',
+            icon     = 'fa-solid fa-paw',
+            onSelect = function() openAnimalMenu(a.id) end,
         },
     })
     animalZones[a.id] = zid
 end
 
 local function removeAnimal(id)
-    if animalZones[id] then exports.ox_target:removeZone(animalZones[id]); animalZones[id] = nil end
+    if animalPeds[id] and DoesEntityExist(animalPeds[id]) then
+        exports.ox_target:removeLocalEntity(animalPeds[id])
+    end
+    animalZones[id] = nil
     if animalPeds[id] and DoesEntityExist(animalPeds[id]) then
         SetEntityAsMissionEntity(animalPeds[id], true, true)
         DeleteEntity(animalPeds[id])
@@ -173,6 +244,27 @@ function openAnimalMenu(animalId)
                 icon     = 'fa-solid fa-seedling',
                 disabled = true,
             }
+        end
+    end
+
+    -- Lead animal (hand+)
+    if rank >= Config.Permissions.feed_water then
+        local ped = animalPeds[animalId]
+        if ped and DoesEntityExist(ped) then
+            if leadingAnimal == animalId then
+                opts[#opts + 1] = {
+                    title    = 'Stop Leading',
+                    icon     = 'fa-solid fa-hand',
+                    onSelect = function() stopLeading() end,
+                }
+            else
+                opts[#opts + 1] = {
+                    title    = 'Lead Animal',
+                    description = 'Animal follows you — lead to pasture or water',
+                    icon     = 'fa-solid fa-route',
+                    onSelect = function() startLeading(animalId) end,
+                }
+            end
         end
     end
 

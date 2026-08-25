@@ -2,12 +2,27 @@ Config = {}
 
 -- ── Ranch Definition ──
 Config.Ranch = {
-    key      = 'beechers_hope',
-    name     = "Beecher's Hope Ranch",
-    coords   = vector3(-1626.67, -1395.06, 82.69),
-    price    = 5000,
-    sellBack = 2500,
-    radius   = 80.0,
+    key        = 'beechers_hope',
+    name       = "Beecher's Hope Ranch",
+    coords     = vector3(-1626.67, -1395.06, 82.69),
+    animalArea = vector3(-1590.89, -1423.93, 81.36),  -- where animals spawn
+    price      = 5000,
+    sellBack   = 2500,
+    radius     = 80.0,
+}
+
+-- ── Grazing & Watering Zones ──
+-- Animals within these zones passively restore hunger/thirst
+Config.PastureZone = {
+    coords = vector3(-1590.89, -1423.93, 81.36),  -- same as animal area (open grass)
+    radius = 30.0,
+    restoreRate = 1,     -- hunger restored per tick (every 60s)
+}
+
+Config.WaterZone = {
+    coords = vector3(-1558.0, -1452.0, 80.0),  -- nearby river/water source (adjust to actual water)
+    radius = 15.0,
+    restoreRate = 2,     -- thirst restored per tick
 }
 
 -- ── Trader NPC (buy ranch + buy animals) ──
