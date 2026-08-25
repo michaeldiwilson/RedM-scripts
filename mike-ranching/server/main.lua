@@ -23,9 +23,10 @@ CreateThread(function()
             created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ]])
-    -- Add scale column if upgrading from old version
+    -- Add columns if upgrading from old version
     MySQL.query('ALTER TABLE mike_ranch_animals ADD COLUMN IF NOT EXISTS scale FLOAT NOT NULL DEFAULT 1.0')
     MySQL.query('ALTER TABLE mike_ranch_animals ADD COLUMN IF NOT EXISTS ranch_id INT DEFAULT NULL')
+    MySQL.query('ALTER TABLE mike_ranch_animals ADD COLUMN IF NOT EXISTS in_barn TINYINT NOT NULL DEFAULT 0')
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ local function loadAnimals()
             x = r.x, y = r.y, z = r.z, heading = r.heading,
             last_fed = r.last_fed, last_water = r.last_water,
             last_produce = r.last_produce,
+            in_barn = (r.in_barn and r.in_barn == 1) or false,
         }
     end
 end
@@ -82,10 +84,10 @@ CreateThread(function()
         local changed = false
 
         for id, a in pairs(animals) do
-            -- Hunger decay
-            a.hunger = math.max(0, a.hunger - Config.HungerDecayPerTick)
-            -- Thirst decay
-            a.thirst = math.max(0, a.thirst - Config.ThirstDecayPerTick)
+            -- Hunger/thirst decay (slower in barn)
+            local decayMult = a.in_barn and Config.Barn.barnDecayMultiplier or 1.0
+            a.hunger = math.max(0, a.hunger - math.floor(Config.HungerDecayPerTick * decayMult))
+            a.thirst = math.max(0, a.thirst - math.floor(Config.ThirstDecayPerTick * decayMult))
 
             -- Passive grazing: if animal is in pasture zone, slowly restore hunger
             if RanchZones and RanchZones.pasture then
@@ -117,6 +119,197 @@ CreateThread(function()
 
         if changed then broadcast() end
     end
+end)
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Send animal to barn
+-- ──────────────────────────────────────────────────────────────────────────
+lib.callback.register('mike-ranching:server:sendToBarn', function(source, animalId)
+    local src = source
+    local cid = GetPlayerCid(src); if not cid then return false end
+    if not HasPermission(cid, 'feed_water') then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'No ranch access' })
+        return false
+    end
+    local a = animals[animalId]; if not a then return false end
+
+    a.in_barn = true
+    MySQL.query('UPDATE mike_ranch_animals SET in_barn = 1 WHERE id = ?', { animalId })
+    broadcast()
+
+    TriggerClientEvent('ox_lib:notify', src, { type = 'success', description = (a.name or 'Animal') .. ' sent to barn' })
+    return true
+end)
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Bring animal out of barn
+-- ──────────────────────────────────────────────────────────────────────────
+lib.callback.register('mike-ranching:server:bringFromBarn', function(source, animalId)
+    local src = source
+    local cid = GetPlayerCid(src); if not cid then return false end
+    if not HasPermission(cid, 'feed_water') then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'No ranch access' })
+        return false
+    end
+    local a = animals[animalId]; if not a then return false end
+
+    -- Spawn near the animal area
+    local spawnCenter = Config.Ranch.animalArea or Config.Ranch.coords
+    a.in_barn = false
+    a.x = spawnCenter.x + math.random(-10, 10)
+    a.y = spawnCenter.y + math.random(-10, 10)
+    a.z = spawnCenter.z
+    MySQL.query('UPDATE mike_ranch_animals SET in_barn = 0, x = ?, y = ?, z = ? WHERE id = ?',
+        { a.x, a.y, a.z, animalId })
+    broadcast()
+
+    TriggerClientEvent('ox_lib:notify', src, { type = 'success', description = (a.name or 'Animal') .. ' brought out to pasture' })
+    return true
+end)
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Barn feed all (costs hay/corn, feeds all barn animals at once)
+-- ──────────────────────────────────────────────────────────────────────────
+lib.callback.register('mike-ranching:server:barnFeedAll', function(source)
+    local src = source
+    local P = RSGCore.Functions.GetPlayer(src); if not P then return false end
+    local cid = P.PlayerData.citizenid
+    if not HasPermission(cid, 'feed_water') then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'No ranch access' })
+        return false
+    end
+
+    -- Count barn animals and calculate feed needed
+    local barnAnimals = {}
+    local feedNeeded = 0
+    for id, a in pairs(animals) do
+        if a.in_barn and a.ranch_id and RanchData and a.ranch_id == RanchData.id then
+            barnAnimals[#barnAnimals + 1] = a
+            local typeDef = Config.AnimalTypes[a.type]
+            if typeDef then feedNeeded = feedNeeded + typeDef.feedQty end
+        end
+    end
+
+    if #barnAnimals == 0 then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'No animals in barn' })
+        return false
+    end
+
+    -- Check if player has enough hay_cube
+    local have = exports['rsg-inventory']:GetItemByName(src, 'hay_cube')
+    if not have or have.amount < feedNeeded then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = ('Need %dx hay cube to feed all'):format(feedNeeded) })
+        return false
+    end
+
+    P.Functions.RemoveItem('hay_cube', feedNeeded)
+
+    for _, a in ipairs(barnAnimals) do
+        local typeDef = Config.AnimalTypes[a.type]
+        if typeDef then
+            a.hunger = math.min(Config.MaxHunger, a.hunger + typeDef.feedRestore)
+            a.last_fed = os.time()
+            MySQL.query('UPDATE mike_ranch_animals SET hunger = ?, last_fed = ? WHERE id = ?', { a.hunger, a.last_fed, a.id })
+        end
+    end
+
+    broadcast()
+    TriggerClientEvent('ox_lib:notify', src, { type = 'success', description = ('Fed %d animals in barn (%dx hay cube)'):format(#barnAnimals, feedNeeded) })
+    return true
+end)
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Barn water all (free)
+-- ──────────────────────────────────────────────────────────────────────────
+lib.callback.register('mike-ranching:server:barnWaterAll', function(source)
+    local src = source
+    local cid = GetPlayerCid(src); if not cid then return false end
+    if not HasPermission(cid, 'feed_water') then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'No ranch access' })
+        return false
+    end
+
+    local count = 0
+    for id, a in pairs(animals) do
+        if a.in_barn and a.ranch_id and RanchData and a.ranch_id == RanchData.id then
+            local typeDef = Config.AnimalTypes[a.type]
+            if typeDef then
+                a.thirst = math.min(Config.MaxThirst, a.thirst + typeDef.waterRestore)
+                a.last_water = os.time()
+                MySQL.query('UPDATE mike_ranch_animals SET thirst = ?, last_water = ? WHERE id = ?', { a.thirst, a.last_water, a.id })
+                count = count + 1
+            end
+        end
+    end
+
+    if count == 0 then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'No animals in barn' })
+        return false
+    end
+
+    broadcast()
+    TriggerClientEvent('ox_lib:notify', src, { type = 'success', description = ('Watered %d animals in barn'):format(count) })
+    return true
+end)
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Get barn animal list
+-- ──────────────────────────────────────────────────────────────────────────
+lib.callback.register('mike-ranching:server:getBarnAnimals', function(source)
+    local list = {}
+    for id, a in pairs(animals) do
+        if a.in_barn and a.ranch_id and RanchData and a.ranch_id == RanchData.id then
+            local typeDef = Config.AnimalTypes[a.type]
+            local growthPct = math.floor(((a.scale - Config.Growth.StartScale) / (Config.Growth.MaxScale - Config.Growth.StartScale)) * 100)
+            list[#list + 1] = {
+                id = a.id, type = a.type, name = a.name,
+                hunger = a.hunger, thirst = a.thirst,
+                growthPct = growthPct,
+                label = typeDef and typeDef.label or a.type,
+            }
+        end
+    end
+    return list
+end)
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Slaughter animal
+-- ──────────────────────────────────────────────────────────────────────────
+lib.callback.register('mike-ranching:server:slaughterAnimal', function(source, animalId, atSlaughterhouse)
+    local src = source
+    local P = RSGCore.Functions.GetPlayer(src); if not P then return false end
+    local cid = P.PlayerData.citizenid
+    if not HasPermission(cid, 'sell_animal') then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'No permission to slaughter' })
+        return false
+    end
+
+    local a = animals[animalId]; if not a then return false end
+    local yields = Config.SlaughterYields[a.type]
+    if not yields then return false end
+
+    local multiplier = atSlaughterhouse and 1.0 or Config.Slaughterhouse.onSitePenalty
+    local parts = {}
+
+    for _, yield in ipairs(yields) do
+        local qty = math.max(1, math.floor(yield.qty * multiplier * a.scale))
+        P.Functions.AddItem(yield.item, qty)
+        TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[yield.item], 'add', qty)
+        parts[#parts + 1] = qty .. 'x ' .. yield.item:gsub('_', ' ')
+    end
+
+    MySQL.query('DELETE FROM mike_ranch_animals WHERE id = ?', { animalId })
+    animals[animalId] = nil
+    broadcast()
+
+    local penaltyText = atSlaughterhouse and '' or ' (10% on-site penalty)'
+    TriggerClientEvent('ox_lib:notify', src, {
+        type = 'success',
+        title = 'Slaughtered ' .. (a.name or 'Animal'),
+        description = table.concat(parts, ', ') .. penaltyText,
+        duration = 6000,
+    })
+    return true
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────

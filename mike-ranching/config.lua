@@ -136,3 +136,36 @@ Config.AnimalTypes = {
 }
 
 Config.MaxAnimals = 15
+
+-- ── Barn ──
+Config.Barn = {
+    coords  = vector3(-1607.0, -1410.0, 82.69),  -- barn door location
+    heading = 0.0,
+    radius  = 3.0,
+    barnDecayMultiplier = 0.5,  -- hunger/thirst decays 50% slower in barn
+}
+
+-- ── Slaughterhouse ──
+Config.Slaughterhouse = {
+    coords = vector3(-1635.0, -1380.0, 82.69),  -- placeholder, adjust in-game
+    radius = 4.0,
+    onSitePenalty = 0.9,  -- 90% yield if slaughtered on-site (10% penalty)
+}
+
+-- ── Butcher yields per animal type (when slaughtered) ──
+Config.SlaughterYields = {
+    cow     = { { item = 'venison', qty = 8 },  { item = 'leather', qty = 2 }, { item = 'fat', qty = 2 } },
+    bull    = { { item = 'venison', qty = 12 }, { item = 'leather', qty = 3 } },
+    chicken = { { item = 'game_meat', qty = 2 }, { item = 'eggs', qty = 3 } },
+    rooster = { { item = 'game_meat', qty = 2 } },
+    sheep   = { { item = 'mutton', qty = 5 },   { item = 'raw_wool', qty = 3 } },
+    goat    = { { item = 'game_meat', qty = 4 }, { item = 'fat', qty = 1 } },
+    pig     = { { item = 'pork', qty = 6 },      { item = 'fat', qty = 3 } },
+}
+
+-- ── Animals that can't graze (must be hand-fed or barn-fed) ──
+Config.NoGrazeAnimals = {
+    pig = true,
+    chicken = true,
+    rooster = true,
+}

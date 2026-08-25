@@ -21,8 +21,9 @@ function startLeading(animalId)
     local a = animalData[animalId]
 
     -- Make animal follow the player
-    SetBlockingOfNonTemporaryEvents(ped, false)
-    TaskFollowToOffsetOfEntity(ped, PlayerPedId(), 0.0, -2.0, 0.0, 1.0, -1, 2.0, true, false, false, false, false, false)
+    FreezeEntityPosition(ped, false)
+    ClearPedTasks(ped)
+    TaskFollowToOffsetOfEntity(ped, PlayerPedId(), 0.0, -2.0, 0.0, 1.5, -1, 2.0, 1)
 
     lib.notify({ type = 'inform', description = 'Leading ' .. (a and a.name or 'animal') .. ' — walk to pasture or water', duration = 4000 })
 
@@ -72,9 +73,8 @@ function stopLeading()
     if leadingAnimal then
         local ped = animalPeds[leadingAnimal]
         if ped and DoesEntityExist(ped) then
-            SetBlockingOfNonTemporaryEvents(ped, true)
-            local coords = GetEntityCoords(ped)
-            TaskWanderInArea(ped, coords.x, coords.y, coords.z, 10.0, 0, 0)
+            ClearPedTasks(ped)
+            TaskWanderStandard(ped, 10.0, 10)
         end
         leadingAnimal = nil
         lib.notify({ type = 'inform', description = 'Stopped leading', duration = 2000 })
@@ -105,6 +105,9 @@ local function spawnAnimal(a)
     Citizen.InvokeNative(0x283978A15512B2FE, ped, true)
     SetEntityInvincible(ped, true)
     SetBlockingOfNonTemporaryEvents(ped, true)
+    SetPedFleeAttributes(ped, 0, 0)
+    SetPedConfigFlag(ped, 294, false)  -- disable shocking events
+    SetPedConfigFlag(ped, 301, false)  -- disable seeing shocked events
 
     -- Apply growth scale
     local scale = a.scale or 1.0
@@ -112,7 +115,7 @@ local function spawnAnimal(a)
         SetPedScale(ped, scale)
     end
 
-    TaskWanderInArea(ped, a.x + 0.0, a.y + 0.0, a.z + 0.0, 10.0, 0, 0)
+    TaskWanderStandard(ped, 10.0, 10)
     animalPeds[a.id] = ped
 
     -- Attach target to the actual ped so it follows the animal as it wanders
@@ -161,11 +164,15 @@ CreateThread(function()
         Wait(3000)
         local pc = GetEntityCoords(PlayerPedId())
         for id, a in pairs(animalData) do
-            local d = #(pc - vector3(a.x + 0.0, a.y + 0.0, a.z + 0.0))
-            if d <= 120.0 then
-                spawnAnimal(a)
+            if a.in_barn then
+                removeAnimal(id)  -- don't render barn animals
             else
-                removeAnimal(id)
+                local d = #(pc - vector3(a.x + 0.0, a.y + 0.0, a.z + 0.0))
+                if d <= 120.0 then
+                    spawnAnimal(a)
+                else
+                    removeAnimal(id)
+                end
             end
         end
     end
@@ -206,8 +213,28 @@ function openAnimalMenu(animalId)
             title    = 'Feed (' .. typeDef.feedQty .. 'x ' .. typeDef.feedItem:gsub('_', ' ') .. ')',
             icon     = 'fa-solid fa-wheat-awn',
             onSelect = function()
-                if lib.progressBar({ duration = 3000, label = 'Feeding...', useWhileDead = false, canCancel = true, disable = { move = true, car = true, combat = true } }) then
+                local ped = animalPeds[animalId]
+                if ped and DoesEntityExist(ped) then
+                    ClearPedTasks(ped)
+                    FreezeEntityPosition(ped, true)
+                end
+
+                local playerPed = PlayerPedId()
+                ClearPedTasksImmediately(playerPed)
+                SetCurrentPedWeapon(playerPed, GetHashKey('WEAPON_UNARMED'), true)
+                Wait(200)
+                TaskStartScenarioInPlace(playerPed, GetHashKey('WORLD_HUMAN_BUCKET_POUR_LOW'), -1, true, false, false, false)
+
+                if lib.progressBar({ duration = 5000, label = 'Feeding ' .. (info.name or 'animal') .. '...', useWhileDead = false, canCancel = true, disable = { move = true, car = true, combat = true } }) then
                     lib.callback.await('mike-ranching:server:feedAnimal', false, animalId)
+                end
+
+                ClearPedTasks(playerPed)
+                Wait(100)
+                ClearPedTasks(playerPed)
+                if ped and DoesEntityExist(ped) then
+                    FreezeEntityPosition(ped, false)
+                    TaskWanderStandard(ped, 10.0, 10)
                 end
             end,
         }
@@ -216,8 +243,28 @@ function openAnimalMenu(animalId)
             title    = 'Water',
             icon     = 'fa-solid fa-droplet',
             onSelect = function()
-                if lib.progressBar({ duration = 3000, label = 'Watering...', useWhileDead = false, canCancel = true, disable = { move = true, car = true, combat = true } }) then
+                local ped = animalPeds[animalId]
+                if ped and DoesEntityExist(ped) then
+                    ClearPedTasks(ped)
+                    FreezeEntityPosition(ped, true)
+                end
+
+                local playerPed = PlayerPedId()
+                ClearPedTasksImmediately(playerPed)
+                SetCurrentPedWeapon(playerPed, GetHashKey('WEAPON_UNARMED'), true)
+                Wait(200)
+                TaskStartScenarioInPlace(playerPed, GetHashKey('WORLD_HUMAN_BUCKET_POUR_LOW'), -1, true, false, false, false)
+
+                if lib.progressBar({ duration = 5000, label = 'Watering ' .. (info.name or 'animal') .. '...', useWhileDead = false, canCancel = true, disable = { move = true, car = true, combat = true } }) then
                     lib.callback.await('mike-ranching:server:waterAnimal', false, animalId)
+                end
+
+                ClearPedTasks(playerPed)
+                Wait(100)
+                ClearPedTasks(playerPed)
+                if ped and DoesEntityExist(ped) then
+                    FreezeEntityPosition(ped, false)
+                    TaskWanderStandard(ped, 10.0, 10)
                 end
             end,
         }
@@ -230,8 +277,28 @@ function openAnimalMenu(animalId)
                 title    = 'Collect ' .. info.produceLabel,
                 icon     = 'fa-solid fa-basket-shopping',
                 onSelect = function()
-                    if lib.progressBar({ duration = 4000, label = 'Collecting...', useWhileDead = false, canCancel = true, disable = { move = true, car = true, combat = true } }) then
+                    local ped = animalPeds[animalId]
+                    if ped and DoesEntityExist(ped) then
+                        ClearPedTasks(ped)
+                        FreezeEntityPosition(ped, true)
+                    end
+
+                    local playerPed = PlayerPedId()
+                    ClearPedTasksImmediately(playerPed)
+                    SetCurrentPedWeapon(playerPed, GetHashKey('WEAPON_UNARMED'), true)
+                    Wait(200)
+                    TaskStartScenarioInPlace(playerPed, GetHashKey('WORLD_HUMAN_BUCKET_POUR_LOW'), -1, true, false, false, false)
+
+                    if lib.progressBar({ duration = 6000, label = 'Collecting ' .. info.produceLabel .. '...', useWhileDead = false, canCancel = true, disable = { move = true, car = true, combat = true } }) then
                         lib.callback.await('mike-ranching:server:collectProduce', false, animalId)
+                    end
+
+                    ClearPedTasks(playerPed)
+                    Wait(100)
+                    ClearPedTasks(playerPed)
+                    if ped and DoesEntityExist(ped) then
+                        FreezeEntityPosition(ped, false)
+                        TaskWanderStandard(ped, 10.0, 10)
                     end
                 end,
             }
@@ -272,8 +339,42 @@ function openAnimalMenu(animalId)
         end
     end
 
-    -- Sell animal (head_rancher+)
+    -- Send to barn (hand+)
+    if rank >= Config.Permissions.feed_water then
+        opts[#opts + 1] = {
+            title    = 'Send to Barn',
+            icon     = 'fa-solid fa-house',
+            onSelect = function()
+                local ok = lib.callback.await('mike-ranching:server:sendToBarn', false, animalId)
+                if ok then removeAnimal(animalId) end
+            end,
+        }
+    end
+
+    -- Slaughter on-site (head_rancher+) — 10% penalty
     if rank >= Config.Permissions.sell_animal then
+        opts[#opts + 1] = {
+            title       = 'Slaughter On-Site (10% penalty)',
+            icon        = 'fa-solid fa-skull',
+            onSelect    = function()
+                local ped = animalPeds[animalId]
+                if ped and DoesEntityExist(ped) then
+                    ClearPedTasks(ped)
+                    FreezeEntityPosition(ped, true)
+                end
+                if lib.progressBar({ duration = 8000, label = 'Slaughtering...', useWhileDead = false, canCancel = true, disable = { move = true, car = true, combat = true } }) then
+                    local ok = lib.callback.await('mike-ranching:server:slaughterAnimal', false, animalId, false)
+                    if ok then removeAnimal(animalId); animalData[animalId] = nil end
+                else
+                    if ped and DoesEntityExist(ped) then
+                        FreezeEntityPosition(ped, false)
+                        TaskWanderStandard(ped, 10.0, 10)
+                    end
+                end
+            end,
+        }
+
+        -- Sell animal
         local sellPrice = math.floor((typeDef.price or 10) * 0.5 * (info.scale or 1.0))
         opts[#opts + 1] = {
             title    = 'Sell Animal ($' .. sellPrice .. ')',
@@ -376,19 +477,15 @@ function openTraderMenu()
                 }
                 opts[#opts + 1] = {
                     title       = 'Set Pasture Zone',
-                    description = 'Walk to the grazing area and set it here',
+                    description = 'You will be asked to walk to the spot and confirm',
                     icon        = 'fa-solid fa-leaf',
-                    onSelect    = function()
-                        lib.callback.await('mike-ranching:server:setZone', false, 'pasture')
-                    end,
+                    onSelect    = function() startZonePlacement('pasture') end,
                 }
                 opts[#opts + 1] = {
                     title       = 'Set Water Zone',
-                    description = 'Walk to a water source and set it here',
+                    description = 'You will be asked to walk to the spot and confirm',
                     icon        = 'fa-solid fa-water',
-                    onSelect    = function()
-                        lib.callback.await('mike-ranching:server:setZone', false, 'water')
-                    end,
+                    onSelect    = function() startZonePlacement('water') end,
                 }
                 opts[#opts + 1] = {
                     title    = ('Sell Ranch ($%d)'):format(Config.Ranch.sellBack),
@@ -403,6 +500,31 @@ function openTraderMenu()
 
     lib.registerContext({ id = 'mike_ranch_trader', title = Config.Trader.name, options = opts })
     lib.showContext('mike_ranch_trader')
+end
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Zone placement: walk to spot, press ENTER to confirm, BACKSPACE to cancel
+-- ──────────────────────────────────────────────────────────────────────────
+function startZonePlacement(zoneType)
+    local label = zoneType == 'pasture' and 'Pasture' or 'Water'
+    lib.notify({ type = 'inform', description = 'Walk to where you want the ' .. label .. ' zone. Press ENTER to confirm, BACKSPACE to cancel.', duration = 8000 })
+
+    local CONFIRM_KEY = 0xC7B5340A   -- ENTER
+    local CANCEL_KEY  = 0x156F7119   -- BACKSPACE
+
+    CreateThread(function()
+        local placing = true
+        while placing do
+            Wait(0)
+            if IsControlJustReleased(0, CONFIRM_KEY) then
+                placing = false
+                lib.callback.await('mike-ranching:server:setZone', false, zoneType)
+            elseif IsControlJustReleased(0, CANCEL_KEY) then
+                placing = false
+                lib.notify({ type = 'error', description = 'Zone placement cancelled', duration = 2000 })
+            end
+        end
+    end)
 end
 
 function openBuyAnimalMenu()
@@ -522,6 +644,81 @@ function openHireMenu()
     lib.showContext('mike_ranch_hire')
 end
 
+-- ──────────────────────────────────────────────────────────────────────────
+-- Barn interaction zone
+-- ──────────────────────────────────────────────────────────────────────────
+local barnZone = nil
+
+CreateThread(function()
+    Wait(4000)
+
+    barnZone = exports.ox_target:addSphereZone({
+        coords = Config.Barn.coords,
+        radius = Config.Barn.radius,
+        debug  = false,
+        options = {
+            {
+                name     = 'mike_ranch_barn',
+                label    = 'Barn',
+                icon     = 'fa-solid fa-warehouse',
+                onSelect = function() openBarnMenu() end,
+            },
+        },
+    })
+end)
+
+function openBarnMenu()
+    local status = lib.callback.await('mike-ranching:server:getRanchStatus', false)
+    if not status or status.playerRank == 0 then
+        return lib.notify({ type = 'error', description = 'You don\'t have access to this ranch' })
+    end
+
+    local barnAnimals = lib.callback.await('mike-ranching:server:getBarnAnimals', false) or {}
+    local opts = {}
+
+    -- Feed all
+    opts[#opts + 1] = {
+        title    = 'Feed All in Barn (costs hay cubes)',
+        icon     = 'fa-solid fa-wheat-awn',
+        onSelect = function()
+            lib.callback.await('mike-ranching:server:barnFeedAll', false)
+        end,
+    }
+
+    -- Water all
+    opts[#opts + 1] = {
+        title    = 'Water All in Barn (free)',
+        icon     = 'fa-solid fa-droplet',
+        onSelect = function()
+            lib.callback.await('mike-ranching:server:barnWaterAll', false)
+        end,
+    }
+
+    -- List barn animals
+    if #barnAnimals > 0 then
+        for _, ba in ipairs(barnAnimals) do
+            local growthText = ba.growthPct >= 100 and 'Adult' or (ba.growthPct .. '% grown')
+            opts[#opts + 1] = {
+                title       = ba.name .. ' (' .. ba.label .. ')',
+                description = ('Hunger: %d%% | Thirst: %d%% | %s'):format(ba.hunger, ba.thirst, growthText),
+                icon        = 'fa-solid fa-paw',
+                onSelect    = function()
+                    lib.callback.await('mike-ranching:server:bringFromBarn', false, ba.id)
+                end,
+            }
+        end
+    else
+        opts[#opts + 1] = {
+            title    = 'No animals in barn',
+            icon     = 'fa-solid fa-box-open',
+            disabled = true,
+        }
+    end
+
+    lib.registerContext({ id = 'mike_ranch_barn', title = 'Barn', options = opts })
+    lib.showContext('mike_ranch_barn')
+end
+
 -- Cleanup
 AddEventHandler('onResourceStop', function(r)
     if r == GetCurrentResourceName() then
@@ -531,5 +728,6 @@ AddEventHandler('onResourceStop', function(r)
             DeleteEntity(traderPed)
         end
         if traderZone then exports.ox_target:removeZone(traderZone) end
+        if barnZone then exports.ox_target:removeZone(barnZone) end
     end
 end)
