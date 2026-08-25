@@ -17,6 +17,7 @@ client_scripts {
 
 server_scripts {
     'server/main.lua',
+    'server/filleting.lua',
 }
 
 dependencies { 'rsg-core', 'rsg-inventory', 'ox_lib', 'ox_target' }

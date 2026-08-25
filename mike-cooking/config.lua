@@ -63,36 +63,9 @@ Config.DryingSlots = 5       -- max items drying at once
 -- Cooking recipes: tier determines which stations can make it
 -- ──────────────────────────────────────────────────────────────────────────
 Config.Recipes = {
-    -- ── Tier 1: Campfire (basic meat/fish) ──
-    -- Fish
-    a_c_fishbluegil_01_sm       = { label = 'Small Bluegill',           output = 'cooked_fish', qty = 1, tier = 1 },
-    a_c_fishperch_01_sm         = { label = 'Small Perch',              output = 'cooked_fish', qty = 1, tier = 1 },
-    a_c_fishbullheadcat_01_sm   = { label = 'Small Bullhead Catfish',   output = 'cooked_fish', qty = 1, tier = 1 },
-    a_c_fishredfinpickerel_01_sm = { label = 'Small Redfin Pickerel',   output = 'cooked_fish', qty = 1, tier = 1 },
-    a_c_fishrockbass_01_sm      = { label = 'Small Rock Bass',          output = 'cooked_fish', qty = 1, tier = 1 },
-    a_c_fishchainpickerel_01_sm = { label = 'Small Chain Pickerel',     output = 'cooked_fish', qty = 1, tier = 1 },
-    a_c_fishbluegil_01_ms       = { label = 'Bluegill',                 output = 'cooked_fish', qty = 2, tier = 1 },
-    a_c_fishperch_01_ms         = { label = 'Perch',                    output = 'cooked_fish', qty = 2, tier = 1 },
-    a_c_fishbullheadcat_01_ms   = { label = 'Bullhead Catfish',         output = 'cooked_fish', qty = 2, tier = 1 },
-    a_c_fishredfinpickerel_01_ms = { label = 'Redfin Pickerel',         output = 'cooked_fish', qty = 2, tier = 1 },
-    a_c_fishrockbass_01_ms      = { label = 'Rock Bass',                output = 'cooked_fish', qty = 2, tier = 1 },
-    a_c_fishchainpickerel_01_ms = { label = 'Chain Pickerel',           output = 'cooked_fish', qty = 2, tier = 1 },
-    a_c_fishlargemouthbass_01_ms = { label = 'Largemouth Bass',         output = 'cooked_fish', qty = 2, tier = 1 },
-    a_c_fishsmallmouthbass_01_ms = { label = 'Smallmouth Bass',         output = 'cooked_fish', qty = 2, tier = 1 },
-    a_c_fishrainbowtrout_01_ms  = { label = 'Rainbow Trout',           output = 'cooked_fish', qty = 2, tier = 1 },
-    a_c_fishsalmonsockeye_01_ms = { label = 'Sockeye Salmon',           output = 'cooked_fish', qty = 2, tier = 1 },
-    a_c_fishsalmonsockeye_01_ml = { label = 'Sockeye Salmon (Med-Lg)',  output = 'cooked_fish', qty = 2, tier = 1 },
-    a_c_fishlargemouthbass_01_lg = { label = 'Large Largemouth Bass',   output = 'cooked_fish', qty = 3, tier = 1 },
-    a_c_fishsmallmouthbass_01_lg = { label = 'Large Smallmouth Bass',   output = 'cooked_fish', qty = 3, tier = 1 },
-    a_c_fishrainbowtrout_01_lg  = { label = 'Large Rainbow Trout',     output = 'cooked_fish', qty = 3, tier = 1 },
-    a_c_fishsalmonsockeye_01_lg = { label = 'Large Sockeye Salmon',     output = 'cooked_fish', qty = 3, tier = 1 },
-    a_c_fishlakesturgeon_01_lg  = { label = 'Lake Sturgeon',           output = 'cooked_fish', qty = 3, tier = 1 },
-    a_c_fishlongnosegar_01_lg   = { label = 'Longnose Gar',            output = 'cooked_fish', qty = 3, tier = 1 },
-    a_c_fishmuskie_01_lg        = { label = 'Muskie',                  output = 'cooked_fish', qty = 3, tier = 1 },
-    a_c_fishnorthernpike_01_lg  = { label = 'Northern Pike',           output = 'cooked_fish', qty = 3, tier = 1 },
-    a_c_fishsteelheadtrout      = { label = 'Steelhead Trout',         output = 'cooked_fish', qty = 3, tier = 1 },
-    a_c_fishchannelcatfish_01_lg = { label = 'Channel Catfish',         output = 'cooked_fish', qty = 4, tier = 1 },
-    a_c_fishchannelcatfish_01_xl = { label = 'XL Channel Catfish',      output = 'cooked_fish', qty = 5, tier = 1 },
+    -- ── Tier 1: Campfire (basic meat/fish fillets) ──
+    -- Fish fillets (must fillet whole fish first with a knife)
+    fish_fillet = { label = 'Fish Fillet', output = 'cooked_fish', qty = 1, tier = 1 },
     -- Meat
     venison    = { label = 'Raw Venison',    output = 'cooked_venison',   qty = 1, tier = 1 },
     bear_meat  = { label = 'Raw Bear Meat',  output = 'cooked_bear_meat', qty = 1, tier = 1 },

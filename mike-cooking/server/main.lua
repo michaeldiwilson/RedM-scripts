@@ -3,6 +3,59 @@ local RSGCore = exports['rsg-core']:GetCoreObject()
 -- ──────────────────────────────────────────────────────────────────────────
 -- Portable items
 -- ──────────────────────────────────────────────────────────────────────────
+-- ──────────────────────────────────────────────────────────────────────────
+-- Register cooking shops (inventory UI) for each tier
+-- ──────────────────────────────────────────────────────────────────────────
+local function buildCookingShopItems(maxTier)
+    local shopItems = {}
+    for rawItem, recipe in pairs(Config.Recipes) do
+        local recipeTier = recipe.tier or 1
+        if recipeTier > maxTier then goto nextRecipe end
+
+        local parts = {}
+        if recipe.inputs then
+            for item, qty in pairs(recipe.inputs) do
+                local info = RSGCore.Shared.Items[item]
+                local label = info and info.label or item:gsub('_', ' ')
+                parts[#parts + 1] = qty .. 'x ' .. label
+            end
+        else
+            local info = RSGCore.Shared.Items[rawItem]
+            local label = info and info.label or rawItem:gsub('_', ' ')
+            parts[#parts + 1] = '1x ' .. label
+        end
+
+        shopItems[#shopItems + 1] = {
+            name   = recipe.output,
+            price  = nil,
+            amount = 999,
+            info   = {
+                craftInputs = recipe.inputs or { [rawItem] = 1 },
+                craftQty    = recipe.qty or 1,
+                description = 'Requires: ' .. table.concat(parts, ', '),
+            },
+        }
+        ::nextRecipe::
+    end
+    return shopItems
+end
+
+CreateThread(function()
+    Wait(3000)
+    exports['rsg-inventory']:CreateShop({ name = 'cooking_campfire', label = 'Campfire Cooking', items = buildCookingShopItems(1) })
+    exports['rsg-inventory']:CreateShop({ name = 'cooking_pot', label = 'Cooking Pot', items = buildCookingShopItems(2) })
+    exports['rsg-inventory']:CreateShop({ name = 'cooking_stove', label = 'Stove Cooking', items = buildCookingShopItems(3) })
+end)
+
+-- Open cooking shop via inventory UI
+RegisterNetEvent('mike-cooking:server:openShop', function(shopName)
+    local src = source
+    exports['rsg-inventory']:OpenShop(src, shopName)
+end)
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Portable items
+-- ──────────────────────────────────────────────────────────────────────────
 RSGCore.Functions.CreateUseableItem('portable_campfire', function(src, item)
     local P = RSGCore.Functions.GetPlayer(src); if not P then return end
     P.Functions.RemoveItem('portable_campfire', 1)

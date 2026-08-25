@@ -18,7 +18,9 @@ CreateThread(function()
             name     = 'mike_cook_campfire',
             label    = 'Cook (Campfire)',
             icon     = 'fa-solid fa-fire',
-            onSelect = function() openCookMenu('campfire') end,
+            onSelect = function()
+                TriggerServerEvent('mike-cooking:server:openShop', 'cooking_campfire')
+            end,
         },
     })
 
@@ -32,7 +34,9 @@ CreateThread(function()
             name     = 'mike_cook_pot',
             label    = 'Cook (Cooking Pot)',
             icon     = 'fa-solid fa-fire',
-            onSelect = function() openCookMenu('campfire_pot') end,
+            onSelect = function()
+                TriggerServerEvent('mike-cooking:server:openShop', 'cooking_pot')
+            end,
         },
     })
 
@@ -46,7 +50,9 @@ CreateThread(function()
             name     = 'mike_cook_stove',
             label    = 'Cook (Stove)',
             icon     = 'fa-solid fa-fire-burner',
-            onSelect = function() openCookMenu('stove') end,
+            onSelect = function()
+                TriggerServerEvent('mike-cooking:server:openShop', 'cooking_stove')
+            end,
         },
     })
 end)
@@ -87,7 +93,9 @@ RegisterNetEvent('mike-cooking:client:placeCampfire', function()
                 name     = 'mike_cook_use_' .. campId,
                 label    = 'Cook',
                 icon     = 'fa-solid fa-fire',
-                onSelect = function() openCookMenu('campfire') end,
+                onSelect = function()
+                    TriggerServerEvent('mike-cooking:server:openShop', 'cooking_campfire')
+                end,
             },
             {
                 name     = 'mike_cook_pack_' .. campId,
