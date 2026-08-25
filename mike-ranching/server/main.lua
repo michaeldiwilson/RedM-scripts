@@ -1,42 +1,46 @@
 local RSGCore = exports['rsg-core']:GetCoreObject()
 
 -- ──────────────────────────────────────────────────────────────────────────
--- DB
+-- DB: animals table (with ranch_id and scale for growth)
 -- ──────────────────────────────────────────────────────────────────────────
 CreateThread(function()
     MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS mike_ranch_animals (
-            id          INT AUTO_INCREMENT PRIMARY KEY,
-            owner_cid   VARCHAR(50) NOT NULL,
-            type        VARCHAR(30) NOT NULL,
-            name        VARCHAR(50) DEFAULT 'Animal',
-            hunger      INT NOT NULL DEFAULT 100,
-            thirst      INT NOT NULL DEFAULT 100,
-            x           FLOAT NOT NULL,
-            y           FLOAT NOT NULL,
-            z           FLOAT NOT NULL,
-            heading     FLOAT NOT NULL DEFAULT 0,
-            last_fed    INT NOT NULL,
-            last_water  INT NOT NULL,
+            id           INT AUTO_INCREMENT PRIMARY KEY,
+            ranch_id     INT DEFAULT NULL,
+            type         VARCHAR(30) NOT NULL,
+            name         VARCHAR(50) DEFAULT 'Animal',
+            hunger       INT NOT NULL DEFAULT 100,
+            thirst       INT NOT NULL DEFAULT 100,
+            scale        FLOAT NOT NULL DEFAULT 0.5,
+            x            FLOAT NOT NULL,
+            y            FLOAT NOT NULL,
+            z            FLOAT NOT NULL,
+            heading      FLOAT NOT NULL DEFAULT 0,
+            last_fed     INT NOT NULL,
+            last_water   INT NOT NULL,
             last_produce INT NOT NULL,
-            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ]])
+    -- Add scale column if upgrading from old version
+    MySQL.query('ALTER TABLE mike_ranch_animals ADD COLUMN IF NOT EXISTS scale FLOAT NOT NULL DEFAULT 1.0')
+    MySQL.query('ALTER TABLE mike_ranch_animals ADD COLUMN IF NOT EXISTS ranch_id INT DEFAULT NULL')
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
 -- In-memory state
 -- ──────────────────────────────────────────────────────────────────────────
-local animals = {}  -- id -> data
+local animals = {}
 
 local function loadAnimals()
     local rows = MySQL.query.await('SELECT * FROM mike_ranch_animals')
     animals = {}
     for _, r in ipairs(rows or {}) do
         animals[r.id] = {
-            id = r.id, owner_cid = r.owner_cid, type = r.type,
+            id = r.id, ranch_id = r.ranch_id, type = r.type,
             name = r.name or 'Animal',
-            hunger = r.hunger, thirst = r.thirst,
+            hunger = r.hunger, thirst = r.thirst, scale = r.scale or 1.0,
             x = r.x, y = r.y, z = r.z, heading = r.heading,
             last_fed = r.last_fed, last_water = r.last_water,
             last_produce = r.last_produce,
@@ -46,16 +50,14 @@ end
 
 local function broadcast()
     local data = {}
-    for id, a in pairs(animals) do
-        data[id] = a
-    end
+    for id, a in pairs(animals) do data[id] = a end
     for _, pid in ipairs(GetPlayers()) do
         TriggerClientEvent('mike-ranching:client:syncAnimals', tonumber(pid), data)
     end
 end
 
 CreateThread(function()
-    Wait(3000)
+    Wait(3500)
     loadAnimals()
     broadcast()
 end)
@@ -71,40 +73,28 @@ AddEventHandler('playerJoining', function()
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Hunger/thirst decay + produce timer (runs every 60 seconds)
+-- Growth + decay tick (every 60 seconds)
 -- ──────────────────────────────────────────────────────────────────────────
 CreateThread(function()
     Wait(10000)
     while true do
-        Wait(60000)
-        local now = os.time()
+        Wait(Config.Growth.TickRate)
         local changed = false
 
         for id, a in pairs(animals) do
-            local typeDef = Config.AnimalTypes[a.type]
-            if not typeDef then goto nextAnimal end
+            -- Hunger decay
+            a.hunger = math.max(0, a.hunger - Config.HungerDecayPerTick)
+            -- Thirst decay
+            a.thirst = math.max(0, a.thirst - Config.ThirstDecayPerTick)
 
-            -- Decay hunger
-            if (now - a.last_fed) >= Config.HungerRate then
-                local decay = math.floor((now - a.last_fed) / Config.HungerRate)
-                a.hunger = math.max(0, a.hunger - decay)
-                a.last_fed = now
-                changed = true
+            -- Growth: only if fed enough
+            if a.scale < Config.Growth.MaxScale and a.hunger >= Config.Growth.MinHungerToGrow then
+                a.scale = math.min(Config.Growth.MaxScale, a.scale + Config.Growth.ScaleIncrease)
             end
 
-            -- Decay thirst
-            if (now - a.last_water) >= Config.ThirstRate then
-                local decay = math.floor((now - a.last_water) / Config.ThirstRate)
-                a.thirst = math.max(0, a.thirst - decay)
-                a.last_water = now
-                changed = true
-            end
-
-            -- Save to DB periodically
-            MySQL.query('UPDATE mike_ranch_animals SET hunger = ?, thirst = ?, last_fed = ?, last_water = ? WHERE id = ?',
-                { a.hunger, a.thirst, a.last_fed, a.last_water, id })
-
-            ::nextAnimal::
+            MySQL.query('UPDATE mike_ranch_animals SET hunger = ?, thirst = ?, scale = ? WHERE id = ?',
+                { a.hunger, a.thirst, a.scale, id })
+            changed = true
         end
 
         if changed then broadcast() end
@@ -112,24 +102,30 @@ CreateThread(function()
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Buy animal from trader
+-- Buy animal (requires ranch access: head_rancher+)
 -- ──────────────────────────────────────────────────────────────────────────
 lib.callback.register('mike-ranching:server:buyAnimal', function(source, animalType)
     local src = source
     local P = RSGCore.Functions.GetPlayer(src); if not P then return false end
+    local cid = P.PlayerData.citizenid
+
+    if not HasPermission(cid, 'buy_animal') then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'You don\'t have permission to buy animals' })
+        return false
+    end
+
     local typeDef = Config.AnimalTypes[animalType]; if not typeDef then return false end
 
-    -- Check max animals
+    -- Count ranch animals
     local count = 0
     for _, a in pairs(animals) do
-        if a.owner_cid == P.PlayerData.citizenid then count = count + 1 end
+        if a.ranch_id and RanchData and a.ranch_id == RanchData.id then count = count + 1 end
     end
     if count >= Config.MaxAnimals then
         TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = ('Max %d animals'):format(Config.MaxAnimals) })
         return false
     end
 
-    -- Check money
     if P.PlayerData.money.cash < typeDef.price then
         TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = ('Need $%d'):format(typeDef.price) })
         return false
@@ -137,64 +133,71 @@ lib.callback.register('mike-ranching:server:buyAnimal', function(source, animalT
 
     P.Functions.RemoveMoney('cash', typeDef.price)
 
-    -- Place near the trader
-    local ped = GetPlayerPed(src)
-    local coords = GetEntityCoords(ped)
-    local heading = GetEntityHeading(ped)
+    -- Spawn near ranch center with random offset
+    local rx = Config.Ranch.coords.x + math.random(-15, 15)
+    local ry = Config.Ranch.coords.y + math.random(-15, 15)
+    local rz = Config.Ranch.coords.z
     local now = os.time()
 
     local id = MySQL.insert.await(
-        'INSERT INTO mike_ranch_animals (owner_cid, type, name, hunger, thirst, x, y, z, heading, last_fed, last_water, last_produce) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        { P.PlayerData.citizenid, animalType, typeDef.label, 100, 100, coords.x, coords.y, coords.z, heading, now, now, now }
+        'INSERT INTO mike_ranch_animals (ranch_id, type, name, hunger, thirst, scale, x, y, z, heading, last_fed, last_water, last_produce) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        { RanchData.id, animalType, typeDef.label, 100, 100, Config.Growth.StartScale, rx, ry, rz, math.random(0, 360), now, now, now }
     )
 
     animals[id] = {
-        id = id, owner_cid = P.PlayerData.citizenid, type = animalType,
-        name = typeDef.label, hunger = 100, thirst = 100,
-        x = coords.x, y = coords.y, z = coords.z, heading = heading,
+        id = id, ranch_id = RanchData.id, type = animalType,
+        name = typeDef.label, hunger = 100, thirst = 100, scale = Config.Growth.StartScale,
+        x = rx, y = ry, z = rz, heading = math.random(0, 360),
         last_fed = now, last_water = now, last_produce = now,
     }
 
     broadcast()
-    TriggerClientEvent('ox_lib:notify', src, { type = 'success', description = ('Bought a %s for $%d'):format(typeDef.label, typeDef.price) })
+    TriggerClientEvent('ox_lib:notify', src, { type = 'success', description = ('Bought a baby %s for $%d'):format(typeDef.label, typeDef.price) })
     return true
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Get animal info (for menu)
+-- Get animal info
 -- ──────────────────────────────────────────────────────────────────────────
 lib.callback.register('mike-ranching:server:getAnimalInfo', function(source, animalId)
     local a = animals[animalId]; if not a then return nil end
     local typeDef = Config.AnimalTypes[a.type]; if not typeDef then return nil end
     local now = os.time()
     local elapsed = now - a.last_produce
-    local produceReady = elapsed >= Config.ProduceTime and a.hunger > 20 and a.thirst > 20
+    local isGrown = a.scale >= Config.Growth.MinScaleToProduce
+    local produceReady = isGrown and elapsed >= Config.ProduceTime and a.hunger > 20 and a.thirst > 20
+
+    local growthPct = math.floor(((a.scale - Config.Growth.StartScale) / (Config.Growth.MaxScale - Config.Growth.StartScale)) * 100)
 
     return {
-        id = a.id,
-        type = a.type,
-        name = a.name,
-        hunger = a.hunger,
-        thirst = a.thirst,
+        id = a.id, type = a.type, name = a.name,
+        hunger = a.hunger, thirst = a.thirst,
+        scale = a.scale, growthPct = growthPct, isGrown = isGrown,
         produceReady = produceReady,
         produceLabel = typeDef.produce.label,
         produceRemaining = produceReady and 0 or math.max(0, Config.ProduceTime - elapsed),
-        owner_cid = a.owner_cid,
     }
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Feed animal
+-- Feed animal (hand+)
 -- ──────────────────────────────────────────────────────────────────────────
 lib.callback.register('mike-ranching:server:feedAnimal', function(source, animalId)
     local src = source
     local P = RSGCore.Functions.GetPlayer(src); if not P then return false end
+    local cid = P.PlayerData.citizenid
+
+    if not HasPermission(cid, 'feed_water') then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'No ranch access' })
+        return false
+    end
+
     local a = animals[animalId]; if not a then return false end
     local typeDef = Config.AnimalTypes[a.type]; if not typeDef then return false end
 
     local have = exports['rsg-inventory']:GetItemByName(src, typeDef.feedItem)
     if not have or have.amount < typeDef.feedQty then
-        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = ('Need %dx %s'):format(typeDef.feedQty, typeDef.feedItem) })
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = ('Need %dx %s'):format(typeDef.feedQty, typeDef.feedItem:gsub('_', ' ')) })
         return false
     end
 
@@ -209,15 +212,20 @@ lib.callback.register('mike-ranching:server:feedAnimal', function(source, animal
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Water animal
+-- Water animal (hand+)
 -- ──────────────────────────────────────────────────────────────────────────
 lib.callback.register('mike-ranching:server:waterAnimal', function(source, animalId)
     local src = source
-    local P = RSGCore.Functions.GetPlayer(src); if not P then return false end
+    local cid = GetPlayerCid(src); if not cid then return false end
+
+    if not HasPermission(cid, 'feed_water') then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'No ranch access' })
+        return false
+    end
+
     local a = animals[animalId]; if not a then return false end
     local typeDef = Config.AnimalTypes[a.type]; if not typeDef then return false end
 
-    -- Water is free (from well/trough)
     a.thirst = math.min(Config.MaxThirst, a.thirst + typeDef.waterRestore)
     a.last_water = os.time()
     MySQL.query('UPDATE mike_ranch_animals SET thirst = ?, last_water = ? WHERE id = ?', { a.thirst, a.last_water, animalId })
@@ -228,22 +236,34 @@ lib.callback.register('mike-ranching:server:waterAnimal', function(source, anima
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Collect produce
+-- Collect produce (hand+)
 -- ──────────────────────────────────────────────────────────────────────────
 lib.callback.register('mike-ranching:server:collectProduce', function(source, animalId)
     local src = source
     local P = RSGCore.Functions.GetPlayer(src); if not P then return false end
+    local cid = P.PlayerData.citizenid
+
+    if not HasPermission(cid, 'collect_produce') then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'No ranch access' })
+        return false
+    end
+
     local a = animals[animalId]; if not a then return false end
     local typeDef = Config.AnimalTypes[a.type]; if not typeDef then return false end
-
     local now = os.time()
+
+    if a.scale < Config.Growth.MinScaleToProduce then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'Animal is not grown enough to produce' })
+        return false
+    end
+
     if (now - a.last_produce) < Config.ProduceTime then
         TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'Not ready yet' })
         return false
     end
 
     if a.hunger <= 20 or a.thirst <= 20 then
-        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'Animal is too hungry or thirsty to produce' })
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'Animal is too hungry or thirsty' })
         return false
     end
 
@@ -260,18 +280,21 @@ lib.callback.register('mike-ranching:server:collectProduce', function(source, an
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
--- Sell/release animal
+-- Sell animal (head_rancher+)
 -- ──────────────────────────────────────────────────────────────────────────
 lib.callback.register('mike-ranching:server:sellAnimal', function(source, animalId)
     local src = source
     local P = RSGCore.Functions.GetPlayer(src); if not P then return false end
-    local a = animals[animalId]; if not a then return false end
-    if a.owner_cid ~= P.PlayerData.citizenid then
-        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'Not your animal' })
+    local cid = P.PlayerData.citizenid
+
+    if not HasPermission(cid, 'sell_animal') then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'You don\'t have permission to sell animals' })
         return false
     end
+
+    local a = animals[animalId]; if not a then return false end
     local typeDef = Config.AnimalTypes[a.type]
-    local sellPrice = math.floor((typeDef and typeDef.price or 10) * 0.5)
+    local sellPrice = math.floor((typeDef and typeDef.price or 10) * 0.5 * a.scale)
 
     MySQL.query('DELETE FROM mike_ranch_animals WHERE id = ?', { animalId })
     animals[animalId] = nil
