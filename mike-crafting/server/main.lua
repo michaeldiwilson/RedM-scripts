@@ -131,6 +131,45 @@ RegisterNetEvent('mike-crafting:server:packBench', function(benchId)
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
+-- Portable crafting: check + craft without a bench
+-- ──────────────────────────────────────────────────────────────────────────
+lib.callback.register('mike-crafting:server:checkPortable', function(source, recipeKey)
+    local src = source
+    local P = RSGCore.Functions.GetPlayer(src); if not P then return false end
+    local recipe = Config.Recipes[recipeKey]; if not recipe or not recipe.portable then return false end
+
+    for item, n in pairs(recipe.inputs) do
+        local have = exports['rsg-inventory']:GetItemByName(src, item)
+        if not have or have.amount < n then
+            TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = ('Need %d × %s'):format(n, item) })
+            return false
+        end
+    end
+    return true
+end)
+
+lib.callback.register('mike-crafting:server:craftPortable', function(source, recipeKey)
+    local src = source
+    local P = RSGCore.Functions.GetPlayer(src); if not P then return false end
+    local recipe = Config.Recipes[recipeKey]; if not recipe or not recipe.portable then return false end
+
+    for item, n in pairs(recipe.inputs) do
+        local have = exports['rsg-inventory']:GetItemByName(src, item)
+        if not have or have.amount < n then
+            TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = ('Need %d × %s'):format(n, item) })
+            return false
+        end
+    end
+
+    local qty = recipe.qty or 1
+    for item, n in pairs(recipe.inputs) do P.Functions.RemoveItem(item, n) end
+    P.Functions.AddItem(recipe.output, qty)
+    TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[recipe.output], 'add', qty)
+    TriggerClientEvent('ox_lib:notify', src, { type = 'success', description = ('Crafted %d × %s'):format(qty, recipe.label or recipe.output) })
+    return true
+end)
+
+-- ──────────────────────────────────────────────────────────────────────────
 -- Pre-check: verify player has materials (before progress bar starts)
 -- ──────────────────────────────────────────────────────────────────────────
 lib.callback.register('mike-crafting:server:checkMaterials', function(source, benchId, recipeKey)

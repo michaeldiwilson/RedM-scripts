@@ -184,6 +184,80 @@ RegisterNetEvent('mike-crafting:client:syncBenches', function(benches)
     end
 end)
 
+-- ──────────────────────────────────────────────────────────────────────────
+-- Portable crafting: /craft command opens menu for basic recipes
+-- ──────────────────────────────────────────────────────────────────────────
+RegisterCommand('craft', function()
+    openPortableCraftMenu()
+end, false)
+
+function openPortableCraftMenu()
+    local RSGCore = exports['rsg-core']:GetCoreObject()
+    local pd = RSGCore.Functions.GetPlayerData()
+    if not pd or not pd.items then return end
+
+    local opts = {}
+    for key, r in pairs(Config.Recipes) do
+        if r.portable then
+            -- Check if player has materials
+            local canCraft = true
+            local ingredientParts = {}
+            for item, needed in pairs(r.inputs) do
+                local have = 0
+                for _, invItem in pairs(pd.items) do
+                    if invItem and invItem.name == item then
+                        have = have + (invItem.amount or 0)
+                    end
+                end
+                local itemLabel = item:gsub('_', ' '):gsub('%b%w', string.upper)
+                ingredientParts[#ingredientParts + 1] = ('%d/%d %s'):format(have, needed, item)
+                if have < needed then canCraft = false end
+            end
+
+            local outputInfo = RSGCore.Shared.Items[r.output]
+            local outputLabel = outputInfo and outputInfo.label or r.output
+            local outputQty = r.qty and r.qty > 1 and (' x' .. r.qty) or ''
+
+            opts[#opts + 1] = {
+                title       = r.label .. outputQty,
+                description = table.concat(ingredientParts, ', '),
+                icon        = canCraft and 'fa-solid fa-hammer' or 'fa-solid fa-lock',
+                disabled    = not canCraft,
+                onSelect    = function()
+                    startPortableCraft(key)
+                end,
+            }
+        end
+    end
+
+    if #opts == 0 then
+        return lib.notify({ type = 'inform', description = 'No portable recipes available' })
+    end
+
+    lib.registerContext({ id = 'mike_portable_craft', title = 'Crafting', options = opts })
+    lib.showContext('mike_portable_craft')
+end
+
+function startPortableCraft(recipeKey)
+    local recipe = Config.Recipes[recipeKey]; if not recipe then return end
+
+    local canCraft = lib.callback.await('mike-crafting:server:checkPortable', false, recipeKey)
+    if not canCraft then return end
+
+    if not lib.progressBar({
+        duration     = recipe.time,
+        label        = 'Crafting ' .. (recipe.label or recipe.output) .. '...',
+        useWhileDead = false,
+        canCancel    = true,
+        disable      = { move = true, car = true, combat = true },
+    }) then
+        lib.notify({ type = 'error', description = 'Crafting cancelled' })
+        return
+    end
+
+    lib.callback.await('mike-crafting:server:craftPortable', false, recipeKey)
+end
+
 AddEventHandler('onResourceStop', function(r)
     if r == GetCurrentResourceName() then
         for benchId, data in pairs(placedBenches) do

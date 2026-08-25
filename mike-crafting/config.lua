@@ -10,9 +10,11 @@ Config.BenchRecipe = {
     time   = 10000,
 }
 
--- Recipes available at the placed bench
+-- Recipes available at the placed bench (and some portable)
+-- portable = true means craftable anywhere from inventory
 -- blueprint = 'item_name' means recipe is hidden unless player has that item
 Config.Recipes = {
+    -- ── Advanced (bench only) ──
     copper_pot = {
         label  = 'Copper Pot',
         inputs = { copper_bar = 5, firewood = 2 },
@@ -50,62 +52,7 @@ Config.Recipes = {
         qty       = 3,
         time      = 3000,   -- TODO: set back to 15000 after testing
     },
-    -- ── Campfire ──
-    portable_campfire = {
-        label  = 'Campfire',
-        inputs = { firewood = 3 },
-        output = 'portable_campfire',
-        qty    = 1,
-        time   = 3000,   -- TODO: set back to 8000 after testing
-    },
-    -- ── Fishing ──
-    fishing_net = {
-        label  = 'Fishing Net',
-        inputs = { rope = 3, oak_plank = 1 },
-        output = 'fishing_net',
-        qty    = 1,
-        time   = 3000,   -- TODO: set back to 15000 after testing
-    },
-    -- ── Hunting Bait ──
-    herbivore_bait = {
-        label  = 'Herbivore Bait',
-        inputs = { crop_corn = 2, crop_carrot = 1 },
-        output = 'herbivore_bait',
-        qty    = 3,
-        time   = 3000,   -- TODO: set back to 10000 after testing
-    },
-    predator_bait = {
-        label  = 'Predator Bait',
-        inputs = { game_meat = 2, fat = 1 },
-        output = 'predator_bait',
-        qty    = 3,
-        time   = 3000,   -- TODO: set back to 10000 after testing
-    },
-    -- ── No blueprint needed ──
-    tanning_rack = {
-        label  = 'Tanning Rack',
-        inputs = { oak_plank = 3, nails = 5, rope = 2 },
-        output = 'tanning_rack',
-        qty    = 1,
-        time   = 3000,  -- TODO: set back to 20000 after testing
-    },
-    -- Rope
-    rope = {
-        label  = 'Rope',
-        inputs = { crop_cotton = 3 },
-        output = 'rope',
-        qty    = 1,
-        time   = 3000,   -- TODO: set back to 8000 after testing
-    },
-    -- Cloth
-    cloth = {
-        label  = 'Cloth',
-        inputs = { crop_cotton = 3 },
-        output = 'cloth',
-        qty    = 1,
-        time   = 3000,   -- TODO: set back to 10000 after testing
-    },
-    -- ── Wagon components (no blueprint needed) ──
+    -- ── Wagon components (bench only) ──
     wagon_wheel = {
         label  = 'Wagon Wheel',
         inputs = { oak_plank = 2, nails = 5, iron_bar = 1 },
@@ -134,7 +81,7 @@ Config.Recipes = {
         qty    = 1,
         time   = 3000,   -- TODO: set back to 10000 after testing
     },
-    -- ── Wagon assembly (blueprint-gated, uses components) ──
+    -- ── Wagon assembly (bench + blueprint) ──
     wagon_kit_work = {
         label     = 'Assemble Work Wagon',
         blueprint = 'wagon_blueprint',
@@ -158,5 +105,62 @@ Config.Recipes = {
         output    = 'wagon_kit_hunting',
         qty       = 1,
         time      = 5000,   -- TODO: set back to 50000 after testing
+    },
+    -- ── Portable (craftable anywhere) ──
+    rope = {
+        label    = 'Rope',
+        inputs   = { crop_cotton = 3 },
+        output   = 'rope',
+        qty      = 1,
+        time     = 3000,   -- TODO: set back to 8000 after testing
+        portable = true,
+    },
+    cloth = {
+        label    = 'Cloth',
+        inputs   = { crop_cotton = 3 },
+        output   = 'cloth',
+        qty      = 1,
+        time     = 3000,   -- TODO: set back to 10000 after testing
+        portable = true,
+    },
+    herbivore_bait = {
+        label    = 'Herbivore Bait',
+        inputs   = { crop_corn = 2, crop_carrot = 1 },
+        output   = 'herbivore_bait',
+        qty      = 3,
+        time     = 3000,   -- TODO: set back to 10000 after testing
+        portable = true,
+    },
+    predator_bait = {
+        label    = 'Predator Bait',
+        inputs   = { game_meat = 2, fat = 1 },
+        output   = 'predator_bait',
+        qty      = 3,
+        time     = 3000,   -- TODO: set back to 10000 after testing
+        portable = true,
+    },
+    portable_campfire = {
+        label    = 'Campfire',
+        inputs   = { firewood = 3 },
+        output   = 'portable_campfire',
+        qty      = 1,
+        time     = 3000,   -- TODO: set back to 8000 after testing
+        portable = true,
+    },
+    fishing_net = {
+        label    = 'Fishing Net',
+        inputs   = { rope = 3, oak_plank = 1 },
+        output   = 'fishing_net',
+        qty      = 1,
+        time     = 3000,   -- TODO: set back to 15000 after testing
+        portable = true,
+    },
+    tanning_rack = {
+        label    = 'Tanning Rack',
+        inputs   = { oak_plank = 3, nails = 5, rope = 2 },
+        output   = 'tanning_rack',
+        qty      = 1,
+        time     = 3000,   -- TODO: set back to 20000 after testing
+        portable = true,
     },
 }
