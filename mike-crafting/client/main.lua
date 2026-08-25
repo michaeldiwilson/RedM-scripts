@@ -27,7 +27,9 @@ RegisterNetEvent('mike-crafting:client:spawnBench', function(benchId, x, y, z, h
                 name     = 'mike_craft_use_' .. benchId,
                 label    = 'Use Crafting Bench',
                 icon     = 'fa-solid fa-hammer',
-                onSelect = function() openCraftMenu(benchId) end,
+                onSelect = function()
+                    TriggerServerEvent('mike-crafting:server:openBenchShop', benchId)
+                end,
             },
             {
                 name     = 'mike_craft_pack_' .. benchId,
