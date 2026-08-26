@@ -785,6 +785,106 @@ function openBarnMenu()
 end
 
 -- ──────────────────────────────────────────────────────────────────────────
+-- Market Stall
+-- ──────────────────────────────────────────────────────────────────────────
+local marketPed = nil
+local marketZone = nil
+
+CreateThread(function()
+    Wait(4000)
+    local ms = Config.MarketStall
+
+    local hash = GetHashKey(ms.npcmodel)
+    if loadModel(hash) then
+        marketPed = CreatePed(hash, ms.coords.x, ms.coords.y, ms.coords.z - 1.0, ms.heading, false, false, false, false)
+        Citizen.InvokeNative(0x283978A15512B2FE, marketPed, true)
+        SetEntityInvincible(marketPed, true)
+        SetBlockingOfNonTemporaryEvents(marketPed, true)
+        FreezeEntityPosition(marketPed, true)
+        SetModelAsNoLongerNeeded(hash)
+    end
+
+    local blip = Citizen.InvokeNative(0x554D9D53F696D002, 1664425300, ms.coords.x + 0.0, ms.coords.y + 0.0, ms.coords.z + 0.0)
+    SetBlipSprite(blip, joaat('blip_shop_market_stall'), true)
+    Citizen.InvokeNative(0x9CB1A1623062F402, blip, ms.name)
+
+    marketZone = exports.ox_target:addSphereZone({
+        coords = ms.coords,
+        radius = ms.radius,
+        debug  = false,
+        options = {
+            {
+                name     = 'mike_ranch_market',
+                label    = ms.name,
+                icon     = 'fa-solid fa-store',
+                onSelect = function() openMarketMenu() end,
+            },
+        },
+    })
+end)
+
+function openMarketMenu()
+    local status = lib.callback.await('mike-ranching:server:getRanchStatus', false)
+    local rank = status and status.playerRank or 0
+
+    local opts = {}
+
+    -- Everyone can buy
+    opts[#opts + 1] = {
+        title    = 'Browse & Buy',
+        description = 'See what the ranch has for sale',
+        icon     = 'fa-solid fa-basket-shopping',
+        onSelect = function()
+            TriggerServerEvent('mike-ranching:server:openMarket')
+        end,
+    }
+
+    -- Ranchers can stock
+    if rank >= 1 then
+        opts[#opts + 1] = {
+            title    = 'Stock Market Stall',
+            description = 'Add your produce to sell',
+            icon     = 'fa-solid fa-boxes-stacked',
+            onSelect = function() openStockMenu() end,
+        }
+    end
+
+    lib.registerContext({ id = 'mike_ranch_market_main', title = Config.MarketStall.name, options = opts })
+    lib.showContext('mike_ranch_market_main')
+end
+
+function openStockMenu()
+    local items = lib.callback.await('mike-ranching:server:getStockableItems', false) or {}
+    local opts = {}
+
+    for _, item in ipairs(items) do
+        opts[#opts + 1] = {
+            title       = item.label .. ' (have: ' .. item.have .. ', stocked: ' .. item.stocked .. ')',
+            description = ('Sells for $%d each'):format(item.price),
+            icon        = 'fa-solid fa-box',
+            onSelect    = function()
+                local res = lib.inputDialog('Stock ' .. item.label, {
+                    { type = 'number', label = 'How many?', default = item.have, min = 1, max = item.have, required = true },
+                })
+                if not res then return end
+                lib.callback.await('mike-ranching:server:stockMarket', false, item.name, res[1])
+            end,
+        }
+    end
+
+    if #opts == 0 then
+        opts[#opts + 1] = {
+            title    = 'You have nothing to stock',
+            icon     = 'fa-solid fa-box-open',
+            disabled = true,
+        }
+    end
+
+    lib.registerContext({ id = 'mike_ranch_market_stock', title = 'Stock Market', menu = 'mike_ranch_market_main', options = opts })
+    lib.showContext('mike_ranch_market_stock')
+end
+
+-- ──────────────────────────────────────────────────────────────────────────
 -- Slaughterhouse NPCs
 -- ──────────────────────────────────────────────────────────────────────────
 local slaughterPeds = {}
@@ -896,6 +996,8 @@ AddEventHandler('onResourceStop', function(r)
         end
         if traderZone then exports.ox_target:removeZone(traderZone) end
         if barnZone then exports.ox_target:removeZone(barnZone) end
+        if marketPed and DoesEntityExist(marketPed) then SetEntityAsMissionEntity(marketPed, true, true); DeleteEntity(marketPed) end
+        if marketZone then exports.ox_target:removeZone(marketZone) end
         for _, ped in ipairs(slaughterPeds) do
             if DoesEntityExist(ped) then SetEntityAsMissionEntity(ped, true, true); DeleteEntity(ped) end
         end

@@ -47,7 +47,7 @@ Config.Permissions = {
 -- ── Growth System ──
 Config.Growth = {
     TickRate       = 60 * 1000,   -- check every 60 seconds
-    ScaleIncrease  = 0.00278,     -- 0.5 / 180 = full growth in 180 ticks (3 hours)
+    ScaleIncrease  = 0.05,        -- TESTING: fast growth, set back to 0.00278 for prod
     StartScale     = 0.5,         -- baby size
     MaxScale       = 1.0,         -- adult size
     MinHungerToGrow = 30,         -- must be fed above this to grow
@@ -136,6 +136,15 @@ Config.AnimalTypes = {
 }
 
 Config.MaxAnimals = 15
+
+-- ── Market Stall (rancher sells produce to other players) ──
+Config.MarketStall = {
+    coords  = vector3(-836.60, -1224.19, 43.53),
+    heading = 0.0,
+    radius  = 3.0,
+    name    = 'Ranch Market',
+    npcmodel = 's_m_m_rhdcowpoke_01',
+}
 
 -- ── Barn ──
 Config.Barn = {

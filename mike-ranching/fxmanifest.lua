@@ -19,6 +19,7 @@ server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/employees.lua',
     'server/main.lua',
+    'server/market.lua',
 }
 
 dependencies { 'rsg-core', 'rsg-inventory', 'ox_lib', 'ox_target', 'oxmysql' }
