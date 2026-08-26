@@ -5,80 +5,110 @@ local animalZones = {}
 local traderPed = nil
 local traderZone = nil
 
-local leadingAnimal = nil  -- animal ID currently being led
-local leadingThread = nil  -- thread handle
+local leadingAnimals = {}  -- { [animalId] = true } — multiple animals can be led
 
 -- ──────────────────────────────────────────────────────────────────────────
 -- Herding: lead animal to pasture/water
 -- ──────────────────────────────────────────────────────────────────────────
 function startLeading(animalId)
-    if leadingAnimal then stopLeading() end
-
     local ped = animalPeds[animalId]
     if not ped or not DoesEntityExist(ped) then return end
 
-    leadingAnimal = animalId
+    leadingAnimals[animalId] = true
     local a = animalData[animalId]
 
     -- Make animal follow the player
     FreezeEntityPosition(ped, false)
     ClearPedTasks(ped)
-    TaskFollowToOffsetOfEntity(ped, PlayerPedId(), 0.0, -2.0, 0.0, 1.5, -1, 2.0, 1)
+    TaskFollowToOffsetOfEntity(ped, PlayerPedId(), 0.0, -2.0 - (math.random(0, 3)), 0.0, 1.5, -1, 2.0, 1)
 
     lib.notify({ type = 'inform', description = 'Leading ' .. (a and a.name or 'animal') .. ' — walk to pasture or water', duration = 4000 })
 
-    -- Thread to check if animal reaches pasture/water zones
+    -- Thread to check if animal reaches pasture/water zones + update position
     CreateThread(function()
-        while leadingAnimal == animalId do
+        while leadingAnimals[animalId] do
             Wait(2000)
             if not ped or not DoesEntityExist(ped) then break end
 
             local animalCoords = GetEntityCoords(ped)
 
+            -- Keep DB position in sync so the proximity spawner doesn't yank it back
+            if animalData[animalId] then
+                animalData[animalId].x = animalCoords.x
+                animalData[animalId].y = animalCoords.y
+                animalData[animalId].z = animalCoords.z
+            end
+            TriggerServerEvent('mike-ranching:server:animalInZone', animalId, 'moving',
+                animalCoords.x, animalCoords.y, animalCoords.z)
+
+            -- Re-issue follow task in case it dropped
+            TaskFollowToOffsetOfEntity(ped, PlayerPedId(), 0.0, -2.0, 0.0, 1.5, -1, 2.0, 1)
+
             -- Get zones from server
             local zones = lib.callback.await('mike-ranching:server:getZones', false) or {}
 
-            -- Check pasture zone
+            -- Notify when entering zones (but keep following)
             if zones.pasture then
                 local pCoords = vector3(zones.pasture.x, zones.pasture.y, zones.pasture.z)
                 local d = #(animalCoords - pCoords)
                 if d <= Config.PastureRadius then
-                    lib.notify({ type = 'success', description = (a and a.name or 'Animal') .. ' is grazing in the pasture', duration = 3000 })
-                    TriggerServerEvent('mike-ranching:server:animalInZone', animalId, 'pasture',
-                        animalCoords.x, animalCoords.y, animalCoords.z)
-                    stopLeading()
-                    TaskWanderInArea(ped, pCoords.x, pCoords.y, pCoords.z, Config.PastureRadius, 0, 0)
-                    break
+                    if not a.notifiedPasture then
+                        lib.notify({ type = 'success', description = (a and a.name or 'Animal') .. ' has entered the pasture zone', duration = 4000 })
+                        TriggerServerEvent('mike-ranching:server:animalInZone', animalId, 'pasture',
+                            animalCoords.x, animalCoords.y, animalCoords.z)
+                        a.notifiedPasture = true
+                    end
+                else
+                    a.notifiedPasture = nil
                 end
             end
 
-            -- Check water zone
             if zones.water then
                 local wCoords = vector3(zones.water.x, zones.water.y, zones.water.z)
                 local d = #(animalCoords - wCoords)
                 if d <= Config.WaterRadius then
-                    lib.notify({ type = 'success', description = (a and a.name or 'Animal') .. ' is drinking at the water source', duration = 3000 })
-                    TriggerServerEvent('mike-ranching:server:animalInZone', animalId, 'water',
-                        animalCoords.x, animalCoords.y, animalCoords.z)
-                    stopLeading()
-                    TaskWanderInArea(ped, wCoords.x, wCoords.y, wCoords.z, Config.WaterRadius, 0, 0)
-                    break
+                    if not a.notifiedWater then
+                        lib.notify({ type = 'success', description = (a and a.name or 'Animal') .. ' has entered the water zone', duration = 4000 })
+                        TriggerServerEvent('mike-ranching:server:animalInZone', animalId, 'water',
+                            animalCoords.x, animalCoords.y, animalCoords.z)
+                        a.notifiedWater = true
+                    end
+                else
+                    a.notifiedWater = nil
                 end
             end
         end
     end)
 end
 
-function stopLeading()
-    if leadingAnimal then
-        local ped = animalPeds[leadingAnimal]
+function stopLeading(animalId)
+    if animalId then
+        leadingAnimals[animalId] = nil
+        local ped = animalPeds[animalId]
         if ped and DoesEntityExist(ped) then
             ClearPedTasks(ped)
-            TaskWanderStandard(ped, 10.0, 10)
+            local coords = GetEntityCoords(ped)
+            -- Wander in small area where they stopped
+            TaskWanderInArea(ped, coords.x, coords.y, coords.z, 8.0, 0, 0)
+            -- Update server position
+            TriggerServerEvent('mike-ranching:server:animalInZone', animalId, 'stopped',
+                coords.x, coords.y, coords.z)
         end
-        leadingAnimal = nil
-        lib.notify({ type = 'inform', description = 'Stopped leading', duration = 2000 })
+    else
+        -- Stop all
+        for id in pairs(leadingAnimals) do
+            local ped = animalPeds[id]
+            if ped and DoesEntityExist(ped) then
+                ClearPedTasks(ped)
+                local coords = GetEntityCoords(ped)
+                TaskWanderInArea(ped, coords.x, coords.y, coords.z, 8.0, 0, 0)
+                TriggerServerEvent('mike-ranching:server:animalInZone', id, 'stopped',
+                    coords.x, coords.y, coords.z)
+            end
+        end
+        leadingAnimals = {}
     end
+    lib.notify({ type = 'inform', description = 'Stopped leading', duration = 2000 })
 end
 
 local function loadModel(hash)
@@ -115,7 +145,8 @@ local function spawnAnimal(a)
         SetPedScale(ped, scale)
     end
 
-    TaskWanderStandard(ped, 10.0, 10)
+    -- Auto-follow the player when first spawned (brought out of barn)
+    TaskFollowToOffsetOfEntity(ped, PlayerPedId(), 0.0, -2.0 - (a.id % 4), 0.0, 1.5, -1, 3.0, 1)
     animalPeds[a.id] = ped
 
     -- Attach target to the actual ped so it follows the animal as it wanders
@@ -167,12 +198,32 @@ CreateThread(function()
             if a.in_barn then
                 removeAnimal(id)  -- don't render barn animals
             else
-                local d = #(pc - vector3(a.x + 0.0, a.y + 0.0, a.z + 0.0))
+                -- If the animal ped exists, use its REAL position for distance check
+                local checkCoords = vector3(a.x + 0.0, a.y + 0.0, a.z + 0.0)
+                if animalPeds[id] and DoesEntityExist(animalPeds[id]) then
+                    local realCoords = GetEntityCoords(animalPeds[id])
+                    checkCoords = realCoords
+                    -- Keep local data in sync with entity position
+                    a.x = realCoords.x
+                    a.y = realCoords.y
+                    a.z = realCoords.z
+                end
+
+                local d = #(pc - checkCoords)
                 if d <= 120.0 then
                     spawnAnimal(a)
                 else
                     removeAnimal(id)
                 end
+            end
+        end
+
+        -- Update server with real positions of spawned animals (every 10 seconds)
+        for id, ped in pairs(animalPeds) do
+            if DoesEntityExist(ped) then
+                local coords = GetEntityCoords(ped)
+                TriggerServerEvent('mike-ranching:server:animalInZone', id, 'moving',
+                    coords.x, coords.y, coords.z)
             end
         end
     end
@@ -318,25 +369,39 @@ function openAnimalMenu(animalId)
         end
     end
 
-    -- Lead animal (hand+)
+    -- Leave here (stop following, wander in place)
     if rank >= Config.Permissions.feed_water then
-        local ped = animalPeds[animalId]
-        if ped and DoesEntityExist(ped) then
-            if leadingAnimal == animalId then
-                opts[#opts + 1] = {
-                    title    = 'Stop Leading',
-                    icon     = 'fa-solid fa-hand',
-                    onSelect = function() stopLeading() end,
-                }
-            else
-                opts[#opts + 1] = {
-                    title    = 'Lead Animal',
-                    description = 'Animal follows you — lead to pasture or water',
-                    icon     = 'fa-solid fa-route',
-                    onSelect = function() startLeading(animalId) end,
-                }
-            end
-        end
+        opts[#opts + 1] = {
+            title    = 'Leave Here',
+            description = 'Animal stops following and stays in this area',
+            icon     = 'fa-solid fa-hand',
+            onSelect = function()
+                local ped = animalPeds[animalId]
+                if ped and DoesEntityExist(ped) then
+                    ClearPedTasks(ped)
+                    local coords = GetEntityCoords(ped)
+                    TaskWanderInArea(ped, coords.x, coords.y, coords.z, 8.0, 0, 0)
+                    TriggerServerEvent('mike-ranching:server:animalInZone', animalId, 'stopped',
+                        coords.x, coords.y, coords.z)
+                    lib.notify({ type = 'inform', description = (info.name or 'Animal') .. ' will stay here', duration = 3000 })
+                end
+            end,
+        }
+
+        -- Call back (make it follow again)
+        opts[#opts + 1] = {
+            title    = 'Follow Me',
+            icon     = 'fa-solid fa-route',
+            onSelect = function()
+                local ped = animalPeds[animalId]
+                if ped and DoesEntityExist(ped) then
+                    ClearPedTasks(ped)
+                    FreezeEntityPosition(ped, false)
+                    TaskFollowToOffsetOfEntity(ped, PlayerPedId(), 0.0, -2.0, 0.0, 1.5, -1, 3.0, 1)
+                    lib.notify({ type = 'inform', description = (info.name or 'Animal') .. ' is following you', duration = 3000 })
+                end
+            end,
+        }
     end
 
     -- Send to barn (hand+)
@@ -719,6 +784,108 @@ function openBarnMenu()
     lib.showContext('mike_ranch_barn')
 end
 
+-- ──────────────────────────────────────────────────────────────────────────
+-- Slaughterhouse NPCs
+-- ──────────────────────────────────────────────────────────────────────────
+local slaughterPeds = {}
+local slaughterZones = {}
+
+CreateThread(function()
+    Wait(4000)
+    for i, sh in ipairs(Config.Slaughterhouses) do
+        -- Spawn NPC
+        local hash = GetHashKey(sh.npcmodel)
+        if loadModel(hash) then
+            local npc = CreatePed(hash, sh.coords.x, sh.coords.y, sh.coords.z - 1.0, sh.heading, false, false, false, false)
+            Citizen.InvokeNative(0x283978A15512B2FE, npc, true)
+            SetEntityInvincible(npc, true)
+            SetBlockingOfNonTemporaryEvents(npc, true)
+            FreezeEntityPosition(npc, true)
+            SetModelAsNoLongerNeeded(hash)
+            slaughterPeds[#slaughterPeds + 1] = npc
+        end
+
+        -- Blip
+        local blip = Citizen.InvokeNative(0x554D9D53F696D002, 1664425300, sh.coords.x + 0.0, sh.coords.y + 0.0, sh.coords.z + 0.0)
+        SetBlipSprite(blip, joaat('blip_shop_butcher'), true)
+        Citizen.InvokeNative(0x9CB1A1623062F402, blip, sh.name)
+
+        -- Interaction zone
+        local zid = exports.ox_target:addSphereZone({
+            coords = sh.coords,
+            radius = sh.radius,
+            debug  = false,
+            options = {
+                {
+                    name     = 'mike_slaughter_' .. i,
+                    label    = sh.name,
+                    icon     = 'fa-solid fa-skull-crossbones',
+                    onSelect = function() openSlaughterhouseMenu() end,
+                },
+            },
+        })
+        slaughterZones[#slaughterZones + 1] = zid
+    end
+end)
+
+function openSlaughterhouseMenu()
+    local status = lib.callback.await('mike-ranching:server:getRanchStatus', false)
+    if not status or status.playerRank == 0 then
+        return lib.notify({ type = 'error', description = 'You need to be a rancher to use the slaughterhouse' })
+    end
+
+    -- Find nearby ranch animals that are following/nearby
+    local opts = {}
+    local playerCoords = GetEntityCoords(PlayerPedId())
+
+    for id, ped in pairs(animalPeds) do
+        if DoesEntityExist(ped) then
+            local d = #(GetEntityCoords(ped) - playerCoords)
+            if d <= 20.0 then
+                local a = animalData[id]
+                if a then
+                    local typeDef = Config.AnimalTypes[a.type]
+                    if typeDef then
+                        -- Show what you'd get
+                        local yields = Config.SlaughterYields[a.type]
+                        local parts = {}
+                        if yields then
+                            for _, y in ipairs(yields) do
+                                local qty = math.max(1, math.floor(y.qty * (a.scale or 1.0)))
+                                parts[#parts + 1] = qty .. 'x ' .. y.item:gsub('_', ' ')
+                            end
+                        end
+                        local sellPrice = math.floor((typeDef.price or 10) * (a.scale or 1.0))
+
+                        opts[#opts + 1] = {
+                            title       = 'Slaughter ' .. (a.name or typeDef.label),
+                            description = ('$%d + %s'):format(sellPrice, table.concat(parts, ', ')),
+                            icon        = 'fa-solid fa-skull-crossbones',
+                            onSelect    = function()
+                                if lib.progressBar({ duration = 8000, label = 'Slaughtering...', useWhileDead = false, canCancel = true, disable = { move = true, car = true, combat = true } }) then
+                                    local ok = lib.callback.await('mike-ranching:server:slaughterAtShop', false, id)
+                                    if ok then removeAnimal(id); animalData[id] = nil end
+                                end
+                            end,
+                        }
+                    end
+                end
+            end
+        end
+    end
+
+    if #opts == 0 then
+        opts[#opts + 1] = {
+            title    = 'No animals nearby — lead your livestock here',
+            icon     = 'fa-solid fa-info',
+            disabled = true,
+        }
+    end
+
+    lib.registerContext({ id = 'mike_slaughterhouse', title = 'Slaughterhouse', options = opts })
+    lib.showContext('mike_slaughterhouse')
+end
+
 -- Cleanup
 AddEventHandler('onResourceStop', function(r)
     if r == GetCurrentResourceName() then
@@ -729,5 +896,9 @@ AddEventHandler('onResourceStop', function(r)
         end
         if traderZone then exports.ox_target:removeZone(traderZone) end
         if barnZone then exports.ox_target:removeZone(barnZone) end
+        for _, ped in ipairs(slaughterPeds) do
+            if DoesEntityExist(ped) then SetEntityAsMissionEntity(ped, true, true); DeleteEntity(ped) end
+        end
+        for _, zid in ipairs(slaughterZones) do exports.ox_target:removeZone(zid) end
     end
 end)

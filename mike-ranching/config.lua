@@ -5,7 +5,7 @@ Config.Ranch = {
     key        = 'beechers_hope',
     name       = "Beecher's Hope Ranch",
     coords     = vector3(-1626.67, -1395.06, 82.69),
-    animalArea = vector3(-1590.89, -1423.93, 81.36),  -- where animals spawn
+    animalArea = vector3(-1616.46, -1403.41, 82.02),  -- where animals spawn
     price      = 5000,
     sellBack   = 2500,
     radius     = 80.0,
@@ -13,10 +13,10 @@ Config.Ranch = {
 
 -- ── Grazing & Watering Zones ──
 -- Owner sets these in-game via trader menu. Stored in DB.
-Config.PastureRadius = 30.0
-Config.PastureRestoreRate = 1   -- hunger restored per tick (every 60s)
-Config.WaterRadius = 15.0
-Config.WaterRestoreRate = 2     -- thirst restored per tick
+Config.PastureRadius = 50.0     -- large area so animals stay in zone
+Config.PastureRestoreRate = 5   -- hunger restored per tick (every 60s) — must outpace decay of 2
+Config.WaterRadius = 25.0      -- generous water zone
+Config.WaterRestoreRate = 5     -- thirst restored per tick — must outpace decay of 2
 
 -- ── Trader NPC (buy ranch + buy animals) ──
 Config.Trader = {
@@ -55,8 +55,8 @@ Config.Growth = {
 }
 
 -- ── Hunger/Thirst ──
-Config.HungerDecayPerTick = 2    -- hunger drops per growth tick
-Config.ThirstDecayPerTick = 2    -- thirst drops per growth tick
+Config.HungerDecayPerTick = 0.5  -- hunger drops per growth tick (very slow)
+Config.ThirstDecayPerTick = 0.5  -- thirst drops per growth tick (very slow)
 Config.MaxHunger  = 100
 Config.MaxThirst  = 100
 Config.ProduceTime = 20 * 60    -- seconds between production cycles
@@ -146,11 +146,16 @@ Config.Barn = {
 }
 
 -- ── Slaughterhouse ──
-Config.Slaughterhouse = {
-    coords = vector3(-1635.0, -1380.0, 82.69),  -- placeholder, adjust in-game
-    radius = 4.0,
-    onSitePenalty = 0.9,  -- 90% yield if slaughtered on-site (10% penalty)
+Config.Slaughterhouses = {
+    {
+        name   = 'Blackwater Slaughterhouse',
+        coords = vector3(-951.32, -1339.85, 50.66),
+        radius = 5.0,
+        npcmodel = 's_m_m_unibutchers_01',
+        heading = 0.0,
+    },
 }
+Config.OnSitePenalty = 0.9  -- 90% yield if slaughtered on ranch (10% penalty)
 
 -- ── Butcher yields per animal type (when slaughtered) ──
 Config.SlaughterYields = {

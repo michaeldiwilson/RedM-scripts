@@ -46,6 +46,8 @@ local function loadAnimals()
             last_fed = r.last_fed, last_water = r.last_water,
             last_produce = r.last_produce,
             in_barn = (r.in_barn and r.in_barn == 1) or false,
+            in_pasture = (r.in_pasture and r.in_pasture == 1) or false,
+            in_water = (r.in_water and r.in_water == 1) or false,
         }
     end
 end
@@ -89,22 +91,32 @@ CreateThread(function()
             a.hunger = math.max(0, a.hunger - math.floor(Config.HungerDecayPerTick * decayMult))
             a.thirst = math.max(0, a.thirst - math.floor(Config.ThirstDecayPerTick * decayMult))
 
-            -- Passive grazing: if animal is in pasture zone, slowly restore hunger
-            if RanchZones and RanchZones.pasture then
-                local pz = RanchZones.pasture
-                local d = math.sqrt((a.x - pz.x)^2 + (a.y - pz.y)^2)
-                if d <= Config.PastureRadius then
-                    a.hunger = math.min(Config.MaxHunger, a.hunger + Config.PastureRestoreRate)
+            -- Auto-detect if animal is in pasture/water zone (no leading required)
+            if not a.in_barn then
+                if RanchZones and RanchZones.pasture and not Config.NoGrazeAnimals[a.type] then
+                    local pz = RanchZones.pasture
+                    local d = math.sqrt((a.x - pz.x)^2 + (a.y - pz.y)^2)
+                    if d <= Config.PastureRadius then
+                        a.in_pasture = true
+                    end
+                end
+                if RanchZones and RanchZones.water then
+                    local wz = RanchZones.water
+                    local d = math.sqrt((a.x - wz.x)^2 + (a.y - wz.y)^2)
+                    if d <= Config.WaterRadius then
+                        a.in_water = true
+                    end
                 end
             end
 
-            -- Passive drinking: if animal is in water zone, slowly restore thirst
-            if RanchZones and RanchZones.water then
-                local wz = RanchZones.water
-                local d = math.sqrt((a.x - wz.x)^2 + (a.y - wz.y)^2)
-                if d <= Config.WaterRadius then
-                    a.thirst = math.min(Config.MaxThirst, a.thirst + Config.WaterRestoreRate)
-                end
+            -- Passive grazing
+            if a.in_pasture and not a.in_barn then
+                a.hunger = math.min(Config.MaxHunger, a.hunger + Config.PastureRestoreRate)
+            end
+
+            -- Passive drinking
+            if a.in_water and not a.in_barn then
+                a.thirst = math.min(Config.MaxThirst, a.thirst + Config.WaterRestoreRate)
             end
 
             -- Growth: only if fed enough
@@ -134,7 +146,9 @@ lib.callback.register('mike-ranching:server:sendToBarn', function(source, animal
     local a = animals[animalId]; if not a then return false end
 
     a.in_barn = true
-    MySQL.query('UPDATE mike_ranch_animals SET in_barn = 1 WHERE id = ?', { animalId })
+    a.in_pasture = false
+    a.in_water = false
+    MySQL.query('UPDATE mike_ranch_animals SET in_barn = 1, in_pasture = 0, in_water = 0 WHERE id = ?', { animalId })
     broadcast()
 
     TriggerClientEvent('ox_lib:notify', src, { type = 'success', description = (a.name or 'Animal') .. ' sent to barn' })
@@ -153,13 +167,16 @@ lib.callback.register('mike-ranching:server:bringFromBarn', function(source, ani
     end
     local a = animals[animalId]; if not a then return false end
 
-    -- Spawn near the animal area
-    local spawnCenter = Config.Ranch.animalArea or Config.Ranch.coords
+    -- Set position to player's location (they'll auto-follow from there)
+    local ped = GetPlayerPed(src)
+    local coords = GetEntityCoords(ped)
     a.in_barn = false
-    a.x = spawnCenter.x + math.random(-10, 10)
-    a.y = spawnCenter.y + math.random(-10, 10)
-    a.z = spawnCenter.z
-    MySQL.query('UPDATE mike_ranch_animals SET in_barn = 0, x = ?, y = ?, z = ? WHERE id = ?',
+    a.in_pasture = false
+    a.in_water = false
+    a.x = coords.x + math.random(-3, 3)
+    a.y = coords.y + math.random(-3, 3)
+    a.z = coords.z
+    MySQL.query('UPDATE mike_ranch_animals SET in_barn = 0, in_pasture = 0, in_water = 0, x = ?, y = ?, z = ? WHERE id = ?',
         { a.x, a.y, a.z, animalId })
     broadcast()
 
@@ -313,12 +330,78 @@ lib.callback.register('mike-ranching:server:slaughterAnimal', function(source, a
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
+-- Slaughter at slaughterhouse: full yield + cash
+-- ──────────────────────────────────────────────────────────────────────────
+lib.callback.register('mike-ranching:server:slaughterAtShop', function(source, animalId)
+    local src = source
+    local P = RSGCore.Functions.GetPlayer(src); if not P then return false end
+    local cid = P.PlayerData.citizenid
+
+    if not HasPermission(cid, 'sell_animal') then
+        TriggerClientEvent('ox_lib:notify', src, { type = 'error', description = 'No permission' })
+        return false
+    end
+
+    local a = animals[animalId]; if not a then return false end
+    local typeDef = Config.AnimalTypes[a.type]; if not typeDef then return false end
+    local yields = Config.SlaughterYields[a.type]
+
+    -- Full yield (no penalty at slaughterhouse)
+    local parts = {}
+    if yields then
+        for _, yield in ipairs(yields) do
+            local qty = math.max(1, math.floor(yield.qty * (a.scale or 1.0)))
+            P.Functions.AddItem(yield.item, qty)
+            TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[yield.item], 'add', qty)
+            parts[#parts + 1] = qty .. 'x ' .. yield.item:gsub('_', ' ')
+        end
+    end
+
+    -- Cash payment based on animal value and growth
+    local cashPayment = math.floor((typeDef.price or 10) * (a.scale or 1.0))
+    P.Functions.AddMoney('cash', cashPayment)
+
+    MySQL.query('DELETE FROM mike_ranch_animals WHERE id = ?', { animalId })
+    animals[animalId] = nil
+    broadcast()
+
+    TriggerClientEvent('ox_lib:notify', src, {
+        type = 'success',
+        title = 'Slaughtered ' .. (a.name or 'Animal'),
+        description = ('$%d + %s'):format(cashPayment, table.concat(parts, ', ')),
+        duration = 6000,
+    })
+    return true
+end)
+
+-- ──────────────────────────────────────────────────────────────────────────
 -- Animal led to zone: update position in DB
 -- ──────────────────────────────────────────────────────────────────────────
 RegisterNetEvent('mike-ranching:server:animalInZone', function(animalId, zoneType, x, y, z)
     local a = animals[animalId]; if not a then return end
     a.x = x; a.y = y; a.z = z
-    MySQL.query('UPDATE mike_ranch_animals SET x = ?, y = ?, z = ? WHERE id = ?', { x, y, z, animalId })
+
+    if zoneType == 'pasture' then
+        a.in_pasture = true
+        a.in_water = false
+        a.in_barn = false
+        MySQL.query('UPDATE mike_ranch_animals SET x = ?, y = ?, z = ?, in_pasture = 1, in_water = 0, in_barn = 0 WHERE id = ?', { x, y, z, animalId })
+    elseif zoneType == 'water' then
+        a.in_water = true
+        a.in_pasture = false
+        a.in_barn = false
+        MySQL.query('UPDATE mike_ranch_animals SET x = ?, y = ?, z = ?, in_water = 1, in_pasture = 0, in_barn = 0 WHERE id = ?', { x, y, z, animalId })
+    elseif zoneType == 'stopped' then
+        -- Animal stopped — just update position, keep zone flags (server tick will re-check)
+        MySQL.query('UPDATE mike_ranch_animals SET x = ?, y = ?, z = ? WHERE id = ?', { x, y, z, animalId })
+    elseif zoneType == 'moving' then
+        -- Just update position, server tick will auto-detect zones
+        MySQL.query('UPDATE mike_ranch_animals SET x = ?, y = ?, z = ? WHERE id = ?', { x, y, z, animalId })
+    else
+        a.in_pasture = false
+        a.in_water = false
+        MySQL.query('UPDATE mike_ranch_animals SET x = ?, y = ?, z = ?, in_pasture = 0, in_water = 0 WHERE id = ?', { x, y, z, animalId })
+    end
 end)
 
 -- ──────────────────────────────────────────────────────────────────────────
